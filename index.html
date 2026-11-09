@@ -1,0 +1,1771 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>신경쇠약</title>
+<style>
+@font-face { font-family:'MyGameFont'; src:url('./assets/fonts/game-font.woff2') format('woff2'); font-display:block; }
+* { box-sizing:border-box; }
+html,body { width:100%;height:100%;margin:0; overscroll-behavior:none; touch-action:manipulation; }
+body { display:grid;place-items:center;overflow:hidden;background-color:#ffe7e8;
+  background-image:linear-gradient(90deg,rgba(255,255,255,.14) 50%,transparent 50%),linear-gradient(rgba(255,255,255,.14) 50%,transparent 50%);
+  background-size:44px 44px; }
+.game-screen {position:relative; width:min(100vw,calc(100dvh * 941 / 1672)); aspect-ratio:941 / 1672; flex:none; overflow:hidden;}
+.art {display:block;position:absolute;inset:0;width:100%;height:100%;user-select:none;pointer-events:none;}
+.label {position:absolute;left:35.5%;width:43.7%;height:7.35%;display:flex;align-items:center;justify-content:center;
+  font-family:'MyGameFont',sans-serif;font-weight:normal;font-size:clamp(12px,6.6cqw,66px);
+  color:#27232b;line-height:1;white-space:nowrap;user-select:none;letter-spacing:-.035em;}
+.game-screen{container-type:inline-size;}
+.label.solo{top:69.05%;}
+.label.together{top:79.45%;}
+/* 버튼으로 전환해도 원본 글씨 위치/모양과 터치 시 외형은 변하지 않음 */
+.label { border:0;padding:0;background:transparent;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;appearance:none; }
+.label:focus-visible{outline:2px solid #af7195;outline-offset:1px;border-radius:8px;}
+.records-button{position:absolute;left:5.3%;top:4.18%;width:11.1%;height:5.65%;background:transparent;border:0;padding:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.records-button:focus-visible{outline:2px solid #af7195;border-radius:18%;}
+
+/* 음표 아이콘 영역만 덮는 정교한 비활성 색상 이미지 */
+.music-off-art {position:absolute;left:67.8002%;top:4.1268%;width:11.2646%;height:5.8612%;pointer-events:none;user-select:none;}
+.music-toggle {position:absolute;left:67.8%;top:4.13%;width:11.27%;height:5.85%;border:0;background:transparent;cursor:pointer;padding:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline-offset:2px;}
+.music-toggle:focus-visible {outline:3px solid #8a5bd3;border-radius:25%;}
+
+/* 설정 팝업: 원본 그림 위에 텍스트, 움직이는 손잡이를 덧붙임 */
+.settings-overlay[hidden]{display:none!important;}
+.settings-overlay{position:absolute;inset:0;z-index:10;background:rgba(36,20,28,.60);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;}
+.settings-panel{position:relative;width:min(94%,calc(77dvh * 1109 / 1114));aspect-ratio:1109/1114;
+    flex:none;container-type:inline-size;filter:drop-shadow(0 7px 11px rgba(65,22,36,.20));}
+.settings-art{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;user-select:none;}
+.settings-title,.settings-word,.settings-percent{position:absolute;font-family:'MyGameFont',sans-serif;
+    font-weight:400;color:#38232b;line-height:1;white-space:nowrap;user-select:none;}
+.settings-title{left:43.3%;top:18.8%;transform:translateY(-50%);font-size:6.3cqw;text-align:center;width:27%;}
+.settings-word{left:19.8%;width:15%;text-align:center;transform:translateY(-50%);font-size:4.1cqw;}
+.settings-word.bgm-word{top:68.0%;}
+.settings-word.sfx-word{top:84.4%;}
+.settings-percent{left:77.4%;width:13%;transform:translateY(-50%);font-size:3.7cqw;text-align:left;font-variant-numeric:tabular-nums;}
+.settings-percent.bgm-percent{top:67.9%;}
+.settings-percent.sfx-percent{top:84.3%;}
+/* 두 슬라이더의 트랙은 고정, 첨부된 발바닥만 이동 */
+.sound-slider{--position:1;--fill:100%;position:absolute;left:39.5%;width:34.5%;height:10.2%;
+    display:block;touch-action:none;cursor:pointer;outline:none;user-select:none;-webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;}
+.sound-slider.bgm-slider{top:62.9%;}
+.sound-slider.sfx-slider{top:79.25%;}
+.sound-slider:focus-visible{outline:3px solid rgba(174,72,127,.78);outline-offset:2px;border-radius:16px;}
+.slider-track{position:absolute;left:3%;right:8.5%;height:34%;top:33%;
+    border:min(.40cqw,4px) solid #211719;border-radius:9999px;
+    background:#ffe3ec;overflow:hidden;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.7);}
+/* 핸들의 위치에 따라 게이지 안쪽을 분홍색으로 남김없이 채웁니다. */
+.slider-track::before{content:"";display:block;position:absolute;inset:0 auto 0 0;
+    width:var(--fill,100%);background:linear-gradient(180deg,#ffc1d3 0%,#ff94b8 32%,#ff81a9 100%);}
+.slider-track::after{content:"";position:absolute;inset:1px 0 auto 0;height:23%;
+    background:rgba(255,255,255,.28);pointer-events:none;}
+.sound-slider .paw-thumb{position:absolute;width:26%;height:auto;top:50%;left:calc(7% + var(--position) * 80.4%);
+    transform:translate(-50%,-50%);pointer-events:none;image-rendering:auto;filter:drop-shadow(0 1px 0 rgba(0,0,0,.08));}
+.settings-close{position:absolute;left:85.0%;top:1.5%;width:13.6%;height:13.6%;border:0;
+    background:transparent;cursor:pointer;padding:0;outline-offset:3px;touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;}
+.settings-close:focus-visible{outline:3px solid #a95d9e;border-radius:16%;}
+
+/* 상단 우측 톱니바퀴 아이콘의 클릭 영역 (원본 아트 그대로 유지) */
+.settings-open{position:absolute;left:80.95%;top:4.15%;width:11.25%;height:5.86%;border:0;
+    padding:0;background:transparent;cursor:pointer;touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;outline-offset:2px;}
+.settings-open:focus-visible{outline:3px solid #8a5bd3;border-radius:25%;}
+
+
+/* 스테이지 선택: 원본 픽셀 메인화면 위에 덧씌우는 창 */
+.stage-overlay[hidden]{display:none!important;}
+.stage-overlay{position:absolute;inset:0;z-index:20;display:flex;justify-content:center;align-items:center;
+  background:rgba(31,20,28,.55);overflow:hidden;touch-action:none;}
+.stage-panel{position:relative;flex:none;width:92%;aspect-ratio:1302/1208;container-type:inline-size;
+  filter:drop-shadow(0 6px 9px rgba(65,22,36,.15));}
+.stage-art{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none;}
+.stage-close{position:absolute;top:3.5%;right:5.2%;width:13.3%;height:15.4%;background:transparent;
+  border:0;padding:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.stage-close:focus-visible,.stage-tile:focus-visible{outline:3px solid #8552a5;outline-offset:2px;}
+.stage-grid{position:absolute;left:12.5%;top:32.5%;width:75%;height:52.2%;
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));
+  column-gap:2.8%;row-gap:7.6%;}
+/* 양옆 화살표: 테두리 창 없이 < > 모양만 표시, 칸과 겹치지 않음 */
+.stage-page-arrow{position:absolute;z-index:2;top:54.8%;width:7%;height:9.2%;
+  transform:translateY(-50%);display:flex;align-items:center;justify-content:center;
+  background:transparent;border:0;padding:0;cursor:pointer;touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;}
+.stage-page-arrow.prev{left:4.5%;}
+.stage-page-arrow.next{right:4.5%;}
+.stage-page-arrow svg{display:block;width:100%;height:100%;overflow:visible;}
+.stage-page-arrow .arrow-shadow{fill:none;stroke:#522b34;stroke-width:9;
+  stroke-linejoin:round;stroke-linecap:round;}
+.stage-page-arrow .arrow-chevron{fill:none;stroke:#ff9ebe;stroke-width:5.4;
+  stroke-linejoin:round;stroke-linecap:round;}
+.stage-page-arrow:disabled{cursor:default;opacity:.65;}
+.stage-page-arrow:disabled .arrow-shadow{stroke:#b9a1a8;}
+.stage-page-arrow:disabled .arrow-chevron{stroke:#f0cbd4;}
+.stage-page-arrow:focus-visible{outline:2px solid #8552a5;border-radius:8px;}
+.stage-page-arrow:not(:disabled):active svg{transform:scale(.92);}
+.stage-tile{position:relative;min-width:0;min-height:0;background:#FDEBE4;
+  border:0.46cqw solid #b77d8c;border-radius:11%;padding:0;
+  font-family:'MyGameFont',sans-serif;cursor:pointer;user-select:none;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.stage-tile.is-cleared{background:#FDBCC7;border-color:#c06c87;}
+.stage-tile.is-locked{border-color:#dfbbc0;cursor:default;}
+.stage-num{position:absolute;left:0;top:50%;transform:translateY(-50%);width:100%;text-align:center;font-size:6.0cqw;
+  line-height:1.15;color:#55323c;font-weight:400;letter-spacing:-.03em;white-space:nowrap;}
+.stage-tile.is-locked .stage-num{color:#d2b7b6;}
+.stage-tile.is-three-digit .stage-num{font-size:5.1cqw;letter-spacing:-.045em;}
+.stage-lock{position:absolute;top:8%;right:8%;width:23%;height:28%;
+  color:#c3a6a6;display:none;}
+.stage-tile.is-locked .stage-lock{display:block;}
+.stage-message[hidden]{display:none!important;}
+.stage-message{position:absolute;left:15%;bottom:8.2%;width:70%;z-index:3;
+  background:#fff0ed;border:2px solid #b7778b;border-radius:14px;
+  color:#55323c;padding:2.0cqw 2.4cqw;text-align:center;
+  font-family:'MyGameFont',sans-serif;font-size:3.6cqw;line-height:1.35;
+  pointer-events:none;box-shadow:0 4px 11px rgba(63,34,44,.15);}
+
+
+/* 아케이드 모드: 사용자가 제공한 바인더 창 이미지 위에 설명과 2×2 배치 선택 버튼을 올립니다. */
+.arcade-overlay[hidden]{display:none!important;}
+.arcade-overlay{position:absolute;inset:0;z-index:22;display:flex;align-items:center;justify-content:center;
+  background:rgba(31,20,28,.55);overflow:hidden;touch-action:none;}
+.arcade-panel{position:relative;flex:none;width:92%;aspect-ratio:1302/1208;container-type:inline-size;
+  filter:drop-shadow(0 6px 9px rgba(65,22,36,.15));}
+.arcade-art{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none;}
+.arcade-close{position:absolute;z-index:3;top:3.8%;right:4.8%;width:13.0%;height:15.2%;border:0;
+  background:transparent;padding:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.arcade-description{position:absolute;left:7%;top:32.5%;width:86%;height:8.5%;display:flex;align-items:center;justify-content:center;
+  color:#49313b;text-align:center;white-space:nowrap;line-height:1.2;
+  font:400 4.1cqw/1.2 'MyGameFont',sans-serif;letter-spacing:-.045em;pointer-events:none;user-select:none;}
+.arcade-layouts{position:absolute;left:14%;top:45.5%;width:72%;height:36.5%;display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));
+  column-gap:5%;row-gap:7%;}
+.arcade-layout-button{display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;
+  border:2.4px solid #30212a;border-radius:2.1cqw;
+  background:linear-gradient(180deg,#fffafd 0%,#ffe3ec 100%);
+  box-shadow:0 .55cqw 0 rgba(111,52,75,.28),inset 0 0 0 2px rgba(255,255,255,.82);
+  color:#49313b;font:400 6.1cqw/1 'MyGameFont',sans-serif;letter-spacing:-.025em;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.arcade-layout-button:nth-child(2),.arcade-layout-button:nth-child(4){
+  background:linear-gradient(180deg,#f8fdff 0%,#d9f2ff 100%);}
+.arcade-layout-button:focus-visible,.arcade-close:focus-visible{outline:3px solid #8552a5;outline-offset:3px;}
+.arcade-layout-button:active{filter:brightness(.97);}
+
+/* 같이하기: 첨부한 그림의 선과 색을 그대로 보존한 투명 팝업. */
+.multiplayer-overlay[hidden]{display:none!important;}
+.multiplayer-overlay{position:absolute;inset:0;z-index:21;display:flex;align-items:center;justify-content:center;
+  background:rgba(31,20,28,.55);overflow:hidden;touch-action:none;}
+.multiplayer-panel{position:relative;flex:none;width:92%;aspect-ratio:1302/1208;container-type:inline-size;
+  filter:drop-shadow(0 6px 9px rgba(65,22,36,.15));}
+.multiplayer-art{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none;}
+.multiplayer-close{position:absolute;z-index:3;top:3.9%;right:5.0%;width:12.4%;height:15.0%;border:0;
+  background:transparent;padding:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.multiplayer-create{position:absolute;left:6.5%;top:33.9%;width:86%;height:24.8%;display:flex;
+  align-items:center;justify-content:flex-end;border:0;background:transparent;padding:0;cursor:pointer;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.multiplayer-create-label{width:65%;text-align:center;white-space:nowrap;line-height:1;
+  font:400 7cqw/1 'MyGameFont',sans-serif;color:#3c232f;transform:translateY(3%);}
+.multiplayer-invite-label{position:absolute;left:31.5%;top:63.0%;width:37%;height:8.7%;
+  display:flex;align-items:center;justify-content:center;white-space:nowrap;pointer-events:none;
+  font:400 4.32cqw/1 'MyGameFont',sans-serif;color:#3c232f;}
+.multiplayer-code{position:absolute;left:10.8%;top:77.3%;width:52.1%;height:9.1%;box-sizing:border-box;
+  border:0;outline:none;background:transparent;margin:0;padding:0 .6%;text-align:center;box-shadow:none;
+  color:#50303c;font:400 max(16px,5.05cqw)/1 'MyGameFont',sans-serif;letter-spacing:.03em;
+  appearance:none;-webkit-appearance:none;touch-action:manipulation;caret-color:#e6709d;}
+.multiplayer-code::placeholder{color:#c4a7af;opacity:1;}
+.multiplayer-code:focus,.multiplayer-code:focus-visible{
+  outline:none!important;outline-offset:0;box-shadow:none!important;
+  border:0;background:transparent; /* 입력할 때 겹치는 작은 입력틀 제거 */
+}
+.multiplayer-join{position:absolute;left:66.5%;top:75.1%;width:22.8%;height:11.0%;border:0;
+  background:transparent;color:#37222d;font:400 6.4cqw/1 'MyGameFont',sans-serif;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.multiplayer-join-label{display:inline-block;transform:translate(7%,24%);}
+.multiplayer-close:focus-visible,.multiplayer-create:focus-visible,.multiplayer-join:focus-visible{
+  outline:2px solid #ba709a;outline-offset:-3px;border-radius:12px;}
+.multiplayer-message[hidden]{display:none!important;}
+.multiplayer-message{position:absolute;left:9%;top:29.1%;width:82%;min-height:3.2%;box-sizing:border-box;
+  padding:.9% 1.4%;border-radius:10px;background:rgba(255,248,247,.96);
+  border:1px solid #eca1b9;color:#7f455a;text-align:center;font:400 3.1cqw/1.3 'MyGameFont',sans-serif;
+  pointer-events:none;}
+/* 카드 매칭 게임 플레이 화면: 같은 941x1672 비율로 메인 이미지 위에 표시 */
+/* 플레이 중에만 세로 화면 전체를 채운다. 메뉴/선택창의 원본 비율은 유지. */
+.game-screen.play-active{height:100dvh;aspect-ratio:auto;}
+.play-scene[hidden],.home-prompt[hidden]{display:none!important;}
+.play-scene{position:absolute;inset:0;z-index:5;overflow:hidden;background:#fde7ed;}
+/* 체크무늬 가운데 부분만 늘려서 화면 비율을 맞추고, 원본의 상단/하단 그림은 왜곡 없이 고정 */
+.play-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none;}
+.play-bg-top,.play-bg-bottom{position:absolute;left:0;width:100%;height:auto;pointer-events:none;user-select:none;}
+.play-bg-top{top:0;}
+.play-bg-bottom{bottom:0;}
+/* 아이콘 좌표는 화면 높이가 아닌 배경 가로폭을 기준으로 맞춘다. */
+.play-home{position:absolute;left:3.4%;top:2.74cqw;width:11.8%;height:10.9cqw;background:transparent;border:0;
+  padding:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.play-home-icon{position:absolute;top:2.74cqw;left:3.4%;width:11.8%;height:10.9cqw;pointer-events:none;user-select:none;}
+.play-music-icon,.play-settings-icon{position:absolute;top:2.74cqw;width:11.8%;height:10.9cqw;pointer-events:none;user-select:none;}
+.play-music-icon{left:71.6%;}
+.play-settings-icon{left:84.1%;}
+.play-icon-button{position:absolute;top:2.74cqw;height:10.9cqw;width:11.8%;border:0;padding:0;
+  background:transparent;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.play-icon-button.music{left:71.6%;}
+.play-icon-button.settings{left:84.1%;}
+.play-icon-button:focus-visible,.play-home:focus-visible,.play-hint:focus-visible{outline:3px solid #915c79;border-radius:24%;outline-offset:2px;}
+.play-hint-wrap{position:absolute;left:16.4%;top:2.74cqw;width:11.8%;height:10.9cqw;z-index:2;}
+.play-hint{position:absolute;inset:0;border:0;padding:0;background:transparent;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.play-hint-icon{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;user-select:none;filter:drop-shadow(0 0 .2cqw rgba(255,255,255,.65)) drop-shadow(0 0 1.4cqw rgba(255,212,236,.9));animation:hintPulse 1.45s ease-in-out infinite;}
+.play-hint-count{position:absolute;right:-.6cqw;top:-.45cqw;min-width:3.05cqw;height:3.05cqw;padding:0 .4cqw;border-radius:999px;display:flex;align-items:center;justify-content:center;
+  font:400 2.2cqw/1 'MyGameFont',sans-serif;color:#fff;background:#ff7fab;border:.24cqw solid #2f2028;
+  box-shadow:0 .25cqw 0 rgba(106,55,77,.26);pointer-events:none;text-shadow:0 .08cqw 0 rgba(0,0,0,.14);}
+.play-hint-wrap.is-used .play-hint{cursor:default;}
+.play-hint-wrap.is-used .play-hint-icon{opacity:.48;filter:grayscale(.18);animation:none;}
+.play-hint-wrap.is-used .play-hint-count{background:#c7bdc2;color:#fff7fb;}
+.play-hint-wrap.is-disabled .play-hint{cursor:default;}
+/* 카드 선택/판정 중에도 힌트의 은은한 빛 애니메이션은 유지 */
+.play-hint-wrap.is-disabled .play-hint-icon{opacity:1;}
+@keyframes hintPulse{0%{transform:scale(1);filter:drop-shadow(0 0 .2cqw rgba(255,255,255,.65)) drop-shadow(0 0 .9cqw rgba(255,204,232,.55));}
+50%{transform:scale(1.045);filter:drop-shadow(0 0 .35cqw rgba(255,255,255,.95)) drop-shadow(0 0 1.9cqw rgba(255,210,236,.95));}
+100%{transform:scale(1);filter:drop-shadow(0 0 .2cqw rgba(255,255,255,.65)) drop-shadow(0 0 .9cqw rgba(255,204,232,.55));}}
+/* 홈 버튼 확인창 */
+.home-prompt{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;
+  background:rgba(40,19,34,.47);touch-action:none;}
+.home-confirm{width:82%;padding:5.3% 4.6% 5.5%;background:linear-gradient(180deg,#fff8f5,#ffe8e9);
+  border:3px solid #251a1c;border-radius:28px;box-shadow:0 6px 0 rgba(105,45,65,.15),inset 0 0 0 4px #ffd5e0;
+  font-family:'MyGameFont',sans-serif;container-type:inline-size;text-align:center;}
+.home-question{font-size:5.65cqw;line-height:1.55;white-space:nowrap;color:#3b2933;margin:4.0% 0 8.5%;}
+.home-actions{display:flex;align-items:center;justify-content:center;gap:4%;}
+.home-actions button{font-family:'MyGameFont',sans-serif;border:2.5px solid #2a1c25;border-radius:16px;
+  min-width:0;flex:1;padding:4.7% 1% 4.3%;font-size:5.1cqw;line-height:1.35;color:#362431;
+  touch-action:manipulation;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.home-exit{background:#ffb7cb;}
+.home-resume{background:#d0edff;}
+.home-actions button:focus-visible{outline:3px solid #ad6c96;outline-offset:2px;}
+
+
+/* 1레벨 카드 짝맞추기: 3초 공개 → 뒤집기 / 3분 타이머 */
+.match-game[hidden],.match-finish[hidden],.match-hud[hidden],.match-lives[hidden]{display:none!important;}
+.match-lives{position:absolute;right:3.5%;top:15.3cqw;width:30%;z-index:3;display:flex;justify-content:flex-end;align-items:center;gap:.25cqw;pointer-events:none;user-select:none;}
+.match-lives .life-heart{display:block;width:5.05cqw;height:4.5cqw;object-fit:contain;flex:0 0 auto;
+  filter:drop-shadow(0 1px 1px rgba(98,45,65,.25));user-select:none;-webkit-user-drag:none;}
+/* 목숨이 7~10개일 때도 상단 오른쪽 공간 안에 모두 정렬되게 크기를 축소. */
+.match-lives[data-max-lives="7"] .life-heart{width:3.95cqw;height:4cqw;}
+.match-lives[data-max-lives="10"] .life-heart{width:2.72cqw;height:3.2cqw;}
+
+.match-game{position:absolute;z-index:1;left:5.8%;width:88.4%;top:17%;bottom:16.2%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(9px,2.2cqw,20px);
+  font-family:'MyGameFont',sans-serif;user-select:none;-webkit-user-select:none;}
+.match-hud{position:absolute;top:2.55cqw;left:17%;width:66%;z-index:2;
+  display:flex;flex-direction:column;align-items:center;gap:.7cqw;
+  pointer-events:none;font-family:'MyGameFont',sans-serif;user-select:none;}
+.match-level{font:400 6.0cqw/1.12 'MyGameFont',sans-serif;
+  color:#3c2c32;text-shadow:0 1px 0 white;white-space:nowrap;}
+.match-timer-track{position:relative;width:58%;height:2.6cqw;min-height:7px;
+  border-radius:999px;border:1.1px solid #432832;background:#fff5f3;overflow:hidden;
+  box-shadow:0 1px 0 #ffffffc7,inset 0 1px 2px #d5a3b3;}
+.match-timer-fill{position:absolute;inset:0;
+  background:linear-gradient(90deg,#ff8aab 0%,#ffbbd1 100%);
+  border-radius:inherit;transform-origin:left center;transform:scaleX(1);}
+.match-time-text{font:400 2.75cqw/1.05 'MyGameFont',sans-serif;
+  color:#77525d;text-shadow:0 1px 0 #fff;}
+.match-timer-track.is-urgent .match-timer-fill{background:linear-gradient(90deg,#ee6b82,#f69b88);}
+.match-board{--match-cols:4;--match-card-ratio:.66;--match-gap:clamp(7px,1.7cqw,15px);width:100%;height:100%;display:grid;
+  grid-template-columns:repeat(var(--match-cols),minmax(0,1fr));align-content:center;align-items:center;justify-items:center;
+  gap:var(--match-gap);perspective:1000px;}
+.match-card{position:relative;display:block;width:100%;aspect-ratio:var(--match-card-ratio);border:0;background:transparent;
+  padding:0;margin:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  outline-offset:2px;user-select:none;-webkit-user-select:none;}
+.match-card:focus-visible{outline:3px solid #9f5b97;border-radius:12%;}
+.match-card-inner{display:block;width:100%;height:100%;position:relative;
+  transform-style:preserve-3d;transition:transform .39s cubic-bezier(.2,.65,.3,1);}
+.match-card.is-flipped .match-card-inner,.match-card.is-matched .match-card-inner{transform:rotateY(180deg);}
+.match-face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  border-radius:10%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  border:2.5px solid #33212b;box-shadow:0 3px 0 rgba(100,54,69,.17);}
+/* 첨부한 강아지 카드 뒷면: 원래 카드 크기/비율은 변경하지 않습니다. */
+.match-back{background:transparent url("./assets/images/card-back-dog.webp") center center / 100% 100% no-repeat;
+  border:0;border-radius:4%;box-shadow:none;}
+.match-front{transform:rotateY(180deg);background:transparent;border:1px solid #4e3328;border-radius:4%;box-shadow:0 1px 0 rgba(100,54,69,.12);}
+.match-front img{width:100%;height:100%;object-fit:cover;object-position:center center;display:block;
+  pointer-events:none;user-select:none;-webkit-user-drag:none;}
+.match-card.is-matched .match-front{border-color:#e579a2;}
+/* 정답: 별이나 장식 없이 카드 가장자리에 부드러운 흰빛만 */
+.match-card.is-success::after{content:"";position:absolute;inset:-2.5%;z-index:5;
+  border-radius:12%;border:3px solid rgba(255,255,255,.98);pointer-events:none;
+  box-shadow:0 0 8px 3px rgba(255,255,255,.92),0 0 22px 7px rgba(255,255,255,.70),
+             inset 0 0 11px 2px rgba(255,255,255,.75);
+  animation:matchGlow .38s ease-in-out infinite alternate;}
+.match-card.is-success .match-front{border-color:#fff;}
+.match-card.is-removed{visibility:hidden;pointer-events:none;}
+@keyframes matchGlow{from{opacity:.65;}to{opacity:1;}}
+.match-finish{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;
+  background:rgba(34,20,27,.52);font-family:'MyGameFont',sans-serif;touch-action:none;}
+.match-finish-box{width:84%;border:3px solid #2a1d25;border-radius:24px;
+  box-shadow:0 7px 0 #943b5a33,inset 0 0 0 4px #ffcfdd;
+  padding:8% 5% 7%;background:linear-gradient(#fffaf6,#ffe4e9);text-align:center;}
+.match-finish-title{font-size:clamp(23px,7.2cqw,58px);color:#dd648e;white-space:nowrap;line-height:1.5;}
+.match-finish-detail{font-size:clamp(14px,4.4cqw,34px);color:#4f3540;margin:3% 0 8%;line-height:1.6;}
+.match-finish-detail[hidden]{display:none!important;}
+.match-finish-title{margin-bottom:5%;}
+.match-finish-buttons{display:flex;gap:3%;}
+.match-finish-buttons button{flex:1;min-width:0;padding:4% 1%;border:2px solid #38212b;
+  border-radius:13px;background:#ffc2d5;color:#422b33;
+  font:400 clamp(13px,4.1cqw,32px)/1.35 'MyGameFont',sans-serif;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.match-finish-buttons button:last-child{background:#caeafa;}
+.match-finish-buttons button[hidden]{display:none!important;}
+/* 클리어 화면에서만 세 버튼을 한 줄에 표시하며 긴 문구도 겹치지 않게 축소. */
+.match-finish[data-result="win"] .match-finish-buttons{gap:2%;}
+.match-finish[data-result="win"] .match-finish-buttons button{
+  font-size:clamp(10px,3.2cqw,25px);letter-spacing:-.035em;
+  padding:4% .4%;white-space:nowrap;border-radius:10px;
+}
+.match-finish[data-result="win"] #matchSelectStage{background:#fff3e6;}
+/* 실패 화면: 홈으로는 왼쪽, 다시하기는 오른쪽. */
+.match-finish[data-result="lose"] #matchStages{order:-1;}
+@media (prefers-reduced-motion:reduce){.match-card-inner{transition-duration:.01ms;}.match-card.is-success::after{animation:none;}}
+
+/* 21레벨 이후 무작위 등장: 꼬리를 포함한 테두리를 한 개의 연속된 선으로 그림 */
+.play-capture-bubble{
+  position:absolute;z-index:2;left:54%;right:3%;bottom:16.5cqw;
+  box-sizing:border-box;max-width:43%;padding:calc(1.7cqw + 2px) calc(1.8cqw + 2px);
+  background:transparent;border:0;border-radius:0;box-shadow:none;
+  isolation:isolate;
+  color:#4d323c;font:400 clamp(11px,2.95cqw,18px)/1.35 'MyGameFont',sans-serif;
+  text-align:center;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;
+  pointer-events:none;user-select:none;
+}
+.play-capture-bubble::before{
+  content:"";position:absolute;z-index:-1;left:-12px;right:0;top:0;bottom:0;
+  background-image:var(--bubble-outline);background-repeat:no-repeat;background-size:100% 100%;
+  filter:drop-shadow(0 .5cqw 0 rgba(98,46,62,.12));pointer-events:none;
+}
+.play-capture-bubble::after{content:none;}
+.play-capture-bubble[hidden]{display:none!important;}
+</style>
+</head>
+<body>
+<main class="game-screen" aria-label="신경쇠약 게임 메인화면">
+  <img class="art" alt="신경쇠약 게임 배경" src="./assets/images/main-background.webp">
+  <img id="musicOffArt" class="music-off-art" alt="" aria-hidden="true" src="./assets/images/music-off.webp">
+  <button id="musicToggle" class="music-toggle" type="button" aria-label="배경음악 켜기" aria-pressed="false" title="음악 켜기 / 끄기"></button>
+  <audio id="bgm" preload="none" loop src="./assets/audio/background-music.mp3"></audio>
+    <button id="settingsOpen" type="button" class="settings-open" aria-label="설정 열기" title="설정 열기"></button>
+  <button id="soloButton" type="button" class="label solo" aria-label="혼자하기">혼자하기</button>
+  <button id="togetherButton" type="button" class="label together" aria-label="같이하기">같이하기</button>
+  <button id="recordsButton" type="button" class="records-button" aria-label="아케이드 모드" title="아케이드 모드"></button>
+
+
+  <section id="playScene" class="play-scene" hidden aria-label="카드 짝맞추기 게임 화면">
+    <img class="play-bg" alt="게임 화면 배경" src="./assets/images/game-background.jpg"><img class="play-bg-top" alt="" aria-hidden="true" src="./assets/images/game-background-top.webp"><img class="play-bg-bottom" alt="" aria-hidden="true" src="./assets/images/game-background-bottom.webp">
+    <img class="play-home-icon" alt="" aria-hidden="true" src="./assets/images/game-home-icon.webp">
+    <button id="playHome" class="play-home" type="button" aria-label="홈으로 돌아가기" title="홈으로 돌아가기"></button>
+    <div id="playHintWrap" class="play-hint-wrap" aria-label="힌트 1회">
+      <img id="playHintArt" class="play-hint-icon" alt="" aria-hidden="true" src="./assets/images/game-hint-icon.webp">
+      <button id="playHintButton" class="play-hint" type="button" aria-label="힌트 사용 가능 1회" title="힌트 1회"></button>
+      <span id="playHintCount" class="play-hint-count" aria-hidden="true">1</span>
+    </div>
+    <img class="play-music-icon" id="playMusicOnArt" alt="" aria-hidden="true" src="./assets/images/game-music-on.webp">
+    <img class="play-music-icon" id="playMusicOffArt" alt="" aria-hidden="true" src="./assets/images/game-music-off.webp">
+    <button id="playMusicToggle" class="play-icon-button music" type="button" aria-label="음악 켜기" title="음악 켜기 / 끄기" aria-pressed="false"></button>
+    <img class="play-settings-icon" alt="" aria-hidden="true" src="./assets/images/game-settings-icon.webp">
+    <button id="playSettingsOpen" class="play-icon-button settings" type="button" aria-label="설정 열기" title="설정 열기"></button>
+    <div id="matchLives" class="match-lives" hidden role="status" aria-label="남은 목숨 3개"></div>
+
+    <div id="playCaptureBubble" class="play-capture-bubble" hidden aria-live="off">눈나들 캡처 하시면 안돼요💖</div>
+    <div id="matchHud" class="match-hud" hidden aria-label="1레벨 남은 시간">
+      <div class="match-level">STAGE 1</div>
+      <div id="matchTimerTrack" class="match-timer-track" role="progressbar" aria-label="남은 시간" aria-valuemin="0" aria-valuemax="180" aria-valuenow="180">
+        <div id="matchTimerFill" class="match-timer-fill"></div>
+      </div>
+      <div id="matchTimeText" class="match-time-text" aria-live="off">3:00</div>
+    </div>
+    <div id="matchGame" class="match-game" hidden aria-label="스테이지 1 카드 짝맞추기">
+      <div id="matchBoard" class="match-board" aria-label="카드 8장"></div>
+    </div>
+    <div id="matchFinish" class="match-finish" hidden aria-hidden="true">
+      <div class="match-finish-box" role="dialog" aria-modal="true" aria-labelledby="matchFinishTitle">
+        <div id="matchFinishTitle" class="match-finish-title">STAGE 1 CLEAR!</div>
+        <div id="matchFinishDetail" class="match-finish-detail" hidden></div>
+        <div class="match-finish-buttons">
+          <button id="matchRestart" type="button">다시하기</button>
+          <button id="matchSelectStage" type="button" hidden>스테이지 선택</button>
+          <button id="matchStages" type="button">다음단계로</button>
+        </div>
+      </div>
+    </div>
+    <div id="homePrompt" class="home-prompt" hidden aria-hidden="true">
+      <div class="home-confirm" role="dialog" aria-modal="true" aria-labelledby="homeQuestion">
+        <div id="homeQuestion" class="home-question">홈화면으로 돌아갈까요?</div>
+        <div class="home-actions">
+          <button id="homeExit" class="home-exit" type="button">돌아가기</button>
+          <button id="homeResume" class="home-resume" type="button">이어하기</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="arcadeOverlay" class="arcade-overlay" hidden aria-hidden="true">
+    <section id="arcadePanel" class="arcade-panel" role="dialog" aria-modal="true" aria-label="아케이드 모드">
+      <img class="arcade-art" alt="" aria-hidden="true" src="./assets/images/arcade-mode-panel.webp">
+      <div class="arcade-description">원하는 난이도로 마음껏 플레이하기</div>
+      <div class="arcade-layouts" aria-label="카드 배치 선택">
+        <button type="button" class="arcade-layout-button" data-arcade-layout="4x4">4x4</button>
+        <button type="button" class="arcade-layout-button" data-arcade-layout="4x5">4x5</button>
+        <button type="button" class="arcade-layout-button" data-arcade-layout="5x4">5x4</button>
+        <button type="button" class="arcade-layout-button" data-arcade-layout="5x6">5x6</button>
+      </div>
+      <button id="arcadeClose" class="arcade-close" type="button" aria-label="아케이드 모드 닫기" title="닫기"></button>
+    </section>
+  </div>
+
+  <div id="stageOverlay" class="stage-overlay" hidden aria-hidden="true">
+    <section id="stagePanel" class="stage-panel" role="dialog" aria-modal="true" aria-label="스테이지 선택">
+      <img class="stage-art" alt="" aria-hidden="true" src="./assets/images/stage-select-panel.webp">
+      <div id="stageGrid" class="stage-grid" aria-label="스테이지 1부터 15까지"></div>
+      <button id="stagePrev" type="button" class="stage-page-arrow prev" aria-label="이전 스테이지 페이지" title="이전 페이지" disabled>
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <path class="arrow-shadow" d="M41 16 L25 32 L41 48"/>
+          <path class="arrow-chevron" d="M41 16 L25 32 L41 48"/>
+        </svg>
+      </button>
+      <button id="stageNext" type="button" class="stage-page-arrow next" aria-label="다음 스테이지 페이지" title="다음 페이지" disabled>
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <path class="arrow-shadow" d="M23 16 L39 32 L23 48"/>
+          <path class="arrow-chevron" d="M23 16 L39 32 L23 48"/>
+        </svg>
+      </button>
+      <button id="stageClose" type="button" class="stage-close" aria-label="스테이지 선택 닫기" title="닫기"></button>
+      <div id="stageMessage" class="stage-message" aria-live="polite" hidden></div>
+    </section>
+  </div>
+
+
+  <div id="multiplayerOverlay" class="multiplayer-overlay" hidden aria-hidden="true">
+    <section id="multiplayerPanel" class="multiplayer-panel" role="dialog" aria-modal="true" aria-label="같이하기">
+      <img class="multiplayer-art" src="./assets/images/multiplayer-panel.webp" alt="" aria-hidden="true">
+      <button id="multiplayerClose" class="multiplayer-close" type="button" aria-label="같이하기 닫기" title="닫기"></button>
+      <button id="multiplayerCreate" class="multiplayer-create" type="button" aria-label="방 만들기">
+        <span class="multiplayer-create-label">방 만들기</span>
+      </button>
+      <div class="multiplayer-invite-label">초대코드 입력</div>
+      <form id="multiplayerJoinForm" autocomplete="off" novalidate>
+        <input id="multiplayerCode" class="multiplayer-code" type="text" name="inviteCode" maxlength="16"
+               autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"
+               placeholder="코드를 입력하세요" aria-label="초대코드" enterkeyhint="go">
+        <button id="multiplayerJoin" class="multiplayer-join" type="submit"><span class="multiplayer-join-label">입장</span></button>
+      </form>
+      <div id="multiplayerMessage" class="multiplayer-message" role="status" aria-live="polite" hidden></div>
+    </section>
+  </div>
+
+  <div id="settingsOverlay" class="settings-overlay" hidden aria-hidden="true">
+    <section id="settingsPanel" class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsHeading">
+      <img class="settings-art" alt="" aria-hidden="true" src="./assets/images/settings-panel.webp">
+      <div id="settingsHeading" class="settings-title">설정</div>
+      <div class="settings-word bgm-word">배경음</div>
+      <div class="settings-word sfx-word">효과음</div>
+      <div id="bgmPercent" class="settings-percent bgm-percent">100%</div>
+      <div id="sfxPercent" class="settings-percent sfx-percent">100%</div>
+      <div id="bgmSlider" class="sound-slider bgm-slider" role="slider" tabindex="0" aria-label="배경음 음량" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+        <div class="slider-track" aria-hidden="true"></div>
+        <img id="bgmPaw" class="paw-thumb" alt="" aria-hidden="true" src="./assets/images/paw-slider-thumb.webp">
+      </div>
+      <div id="sfxSlider" class="sound-slider sfx-slider" role="slider" tabindex="0" aria-label="효과음 음량" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+        <div class="slider-track" aria-hidden="true"></div>
+        <img id="sfxPaw" class="paw-thumb" alt="" aria-hidden="true" src="./assets/images/paw-slider-thumb.webp">
+      </div>
+      <button id="settingsClose" class="settings-close" type="button" aria-label="설정 닫기" title="설정 닫기"></button>
+    </section>
+  </div>
+
+</main>
+<script>
+// 최초 방문: 메인 음표는 꺼짐(회색)이며, 설정창의 기본 음량은 100%입니다.
+const musicToggle = document.getElementById('musicToggle');
+const musicOffArt = document.getElementById('musicOffArt');
+const bgm = document.getElementById('bgm');
+const settingsOpen = document.getElementById('settingsOpen');
+const settingsClose = document.getElementById('settingsClose');
+const settingsOverlay = document.getElementById('settingsOverlay');
+const bgmPercent = document.getElementById('bgmPercent');
+const sfxPercent = document.getElementById('sfxPercent');
+let masterOn = false; // 사용자가 음표 버튼으로 직접 켜야만 활성화됨
+let bgmVolume = 100;
+let sfxVolume = 100;
+let audioContext = null;
+
+function updateIcon() {
+  // 메인에서 직접 끄면 음량 설정과 상관없이 회색 유지.
+  // 켜진 상태라도 배경음/효과음이 둘 다 0%이면 회색.
+  const visibleOn = masterOn && (bgmVolume > 0 || sfxVolume > 0);
+  musicOffArt.hidden = visibleOn;
+  musicOffArt.style.display = visibleOn ? 'none' : 'block';
+  document.getElementById('playMusicOffArt').hidden = visibleOn;
+  document.getElementById('playMusicOffArt').style.display = visibleOn ? 'none' : 'block';
+  document.getElementById('playMusicToggle').setAttribute('aria-pressed', String(masterOn));
+  document.getElementById('playMusicToggle').setAttribute('aria-label', masterOn ? '모든 소리 끄기' : '소리 켜기');
+  musicToggle.setAttribute('aria-pressed', String(masterOn));
+  musicToggle.setAttribute('aria-label', masterOn ? '모든 소리 끄기' : '소리 켜기');
+  musicToggle.title = masterOn ? '소리 끄기' : '소리 켜기';
+}
+
+function syncBgm() {
+  bgm.volume = bgmVolume / 100;
+  if (masterOn && bgmVolume > 0) {
+    if (bgm.paused) {
+      const p = bgm.play();
+      if (p && typeof p.catch === 'function') p.catch(err => console.warn('사용자 조작 후 음악이 재생될 수 있습니다.', err));
+    }
+  } else if (!bgm.paused) {
+    bgm.pause();
+  }
+  updateIcon();
+}
+
+// 자체 제작한 부드러운 2음 '또롱~' 벨 효과음.
+// 모든 버튼과 효과음 슬라이더 미리듣기에서 동일한 효과음을 사용합니다.
+// 메인 음표로 음소거했거나 효과음이 0%라면 재생하지 않습니다.
+function playButtonSfx() {
+  if (!masterOn || sfxVolume <= 0) return;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    audioContext ||= new Ctx();
+    if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+    const t = audioContext.currentTime + 0.008;
+    const volume = 1.45 * sfxVolume / 100; // 전체 버튼 효과음 음량 상향
+    // 가벼운 첫 음과 조금 길게 여운을 남기는 두 번째 음.
+    const notes = [
+      { hz: 659.26, at: 0, gain: 0.115, duration: 0.30 },
+      { hz: 987.77, at: 0.105, gain: 0.14, duration: 0.48 }
+    ];
+    for (const note of notes) {
+      const at = t + note.at;
+      // 깨끗한 기본음 + 아주 약한 배음으로 장난감 종소리 질감 구현.
+      for (const [multiple, strength] of [[1, 1], [2, 0.14], [3, 0.045]]) {
+        const oscillator = audioContext.createOscillator();
+        const envelope = audioContext.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(note.hz * multiple, at);
+        const peak = Math.max(0.0001, note.gain * strength * volume);
+        envelope.gain.setValueAtTime(0.00001, at);
+        envelope.gain.exponentialRampToValueAtTime(peak, at + 0.011);
+        envelope.gain.exponentialRampToValueAtTime(0.00001, at + note.duration);
+        oscillator.connect(envelope).connect(audioContext.destination);
+        oscillator.start(at);
+        oscillator.stop(at + note.duration + 0.015);
+      }
+    }
+  } catch (e) { /* 오디오를 지원하지 않는 환경에서는 UI를 정상적으로 유지 */ }
+}
+
+// 아직 화면 전환 기능을 붙이지 않은 버튼도 터치 피드백은 들리도록 처리.
+for (const id of ['soloButton','togetherButton','recordsButton']) {
+  document.getElementById(id).addEventListener('click', playButtonSfx);
+}
+
+function toggleMasterMusic(){
+  masterOn = !masterOn;
+  syncBgm();
+  if (masterOn) playButtonSfx();
+}
+musicToggle.addEventListener('click',toggleMasterMusic);
+
+let settingsReturnFocus = settingsOpen;
+function openSettings(event) {
+  settingsReturnFocus = (event && event.currentTarget) || settingsOpen;
+  settingsOverlay.hidden = false;
+  settingsOverlay.setAttribute('aria-hidden','false');
+  updateHintUi();
+  settingsClose.focus({preventScroll:true});
+  playButtonSfx();
+}
+function closeSettings() {
+  playButtonSfx();
+  settingsOverlay.hidden = true;
+  settingsOverlay.setAttribute('aria-hidden','true');
+  updateHintUi();
+  settingsReturnFocus.focus({preventScroll:true});
+}
+settingsOpen.addEventListener('click',openSettings);
+settingsClose.addEventListener('click',closeSettings);
+// 원본 설정창 이미지처럼 X 버튼으로만 닫습니다. 배경을 눌러도 닫히지 않습니다.
+settingsOverlay.addEventListener('keydown', e => {
+  if(e.key === 'Escape') { e.preventDefault(); closeSettings(); }
+  // 소규모 팝업 내에서 탭 포커스를 순환하도록 합니다.
+  if(e.key === 'Tab') {
+    const els=[document.getElementById('bgmSlider'),document.getElementById('sfxSlider'),settingsClose];
+    const n=els.indexOf(document.activeElement);
+    if(e.shiftKey && n===0){e.preventDefault();els[els.length-1].focus();}
+    if(!e.shiftKey && n===els.length-1){e.preventDefault();els[0].focus();}
+  }
+});
+
+function bindSlider(id, key) {
+  const el=document.getElementById(id);
+  let pointerId=null;
+  const paint = () => {
+    const value=key==='bgm' ? bgmVolume : sfxVolume;
+    el.style.setProperty('--position',String(value/100));
+    el.style.setProperty('--fill',value+'%');
+    el.setAttribute('aria-valuenow',String(value));
+    (key==='bgm' ? bgmPercent : sfxPercent).textContent=value+'%';
+  };
+  const setValue = (value) => {
+    value=Math.min(100,Math.max(0,Math.round(value)));
+    if(key==='bgm') bgmVolume=value;
+    else sfxVolume=value;
+    paint();
+    syncBgm(); // masterOn이 false라면 음량을 만져도 음악이 켜지지 않음.
+  };
+  const setFromPointer = e => {
+    const rect=el.getBoundingClientRect();
+    const x=(e.clientX-rect.left)/rect.width;
+    // thumb centers (CSS): 7% to 87.4% of slider width.
+    setValue((x-.07)/.804*100);
+  };
+  el.addEventListener('pointerdown', e=>{
+    if(e.button!==0 && e.pointerType==='mouse')return;
+    e.preventDefault();
+    pointerId=e.pointerId;
+    el.setPointerCapture(e.pointerId);
+    setFromPointer(e);
+  });
+  el.addEventListener('pointermove',e=>{
+    if(pointerId===e.pointerId) { e.preventDefault();setFromPointer(e); }
+  });
+  const stopDrag = e => {
+    if (pointerId !== e.pointerId) return;
+    pointerId = null;
+    // 효과음 슬라이더 손을 뗀 시점의 최종 %로 딱 한 번 미리듣기.
+    if (e.type === 'pointerup' && key === 'sfx') playButtonSfx();
+  };
+  el.addEventListener('pointerup',stopDrag);
+  el.addEventListener('pointercancel',stopDrag);
+  el.addEventListener('lostpointercapture',()=>{pointerId=null;});
+  el.addEventListener('keydown',e=>{
+    let v=key==='bgm' ? bgmVolume : sfxVolume;
+    if(e.key==='ArrowRight'||e.key==='ArrowUp')v+=5;
+    else if(e.key==='ArrowLeft'||e.key==='ArrowDown')v-=5;
+    else if(e.key==='Home')v=0;
+    else if(e.key==='End')v=100;
+    else return;
+    e.preventDefault();setValue(v);
+  });
+  // 키보드로 조절하는 사용자도 마지막 설정 음량을 확인할 수 있습니다.
+  el.addEventListener('keyup', e => {
+    if (key === 'sfx' && ['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Home','End'].includes(e.key)) {
+      playButtonSfx();
+    }
+  });
+  paint();
+}
+bindSlider('bgmSlider','bgm');
+bindSlider('sfxSlider','sfx');
+syncBgm();
+
+
+// 1~15 스테이지. 미클리어는 연분홍, 클리어 시 진분홍 + 받은 별 개수만큼 채웁니다.
+// 나중에 게임을 제작할 때 recordStageClear(번호, 별개수)를 호출하면 저장되고 다음 단계가 열립니다.
+const STAGE_STORAGE_KEY='shingyeongsoeyak-stage-stars-v1';
+const LAST_CLEARED_STAGE_KEY='shingyeongsoeyak-last-cleared-stage-v1';
+// 스테이지 1~450, 페이지당 15개(5열 × 3행).
+const STAGES_PER_PAGE=15;
+const TOTAL_STAGES=450; // 전체 450스테이지 플레이 가능
+const MAX_PLAYABLE_STAGE=450;
+let stagePage=0;
+const stageOverlay=document.getElementById('stageOverlay');
+const stageGrid=document.getElementById('stageGrid');
+const stagePrev=document.getElementById('stagePrev');
+const stageNext=document.getElementById('stageNext');
+const stageClose=document.getElementById('stageClose');
+const stageMessage=document.getElementById('stageMessage');
+const starFullSrc='./assets/images/star-full.webp';
+const starEmptySrc='./assets/images/star-empty.webp';
+const stageProgress=(()=>{
+  try {
+    const loaded=JSON.parse(localStorage.getItem(STAGE_STORAGE_KEY)||'{}');
+    return loaded && typeof loaded==='object' && !Array.isArray(loaded) ? loaded : {};
+  } catch(e){return {};}
+})();
+let stageMessageTimeout=null;
+function stageStarCount(n){
+  return Math.max(0,Math.min(3,Math.floor(Number(stageProgress[n])||0)));
+}
+function stageUnlocked(n){
+  return n>=1 && n<=MAX_PLAYABLE_STAGE && (n===1 || stageStarCount(n-1)>0);
+}
+function showStageMessage(message){
+  stageMessage.textContent=message;
+  stageMessage.hidden=false;
+  clearTimeout(stageMessageTimeout);
+  stageMessageTimeout=setTimeout(()=>{stageMessage.hidden=true;},1600);
+}
+function renderStages(){
+  const pageCount=Math.ceil(TOTAL_STAGES/STAGES_PER_PAGE);
+  stagePage=Math.max(0,Math.min(stagePage,pageCount-1));
+  const start=stagePage*STAGES_PER_PAGE+1;
+  const end=Math.min(start+STAGES_PER_PAGE-1,TOTAL_STAGES);
+  stageGrid.setAttribute('aria-label',`스테이지 ${start}부터 ${end}까지, ${stagePage+1}/${pageCount} 페이지`);
+  stagePrev.disabled=stagePage===0;
+  stageNext.disabled=stagePage>=pageCount-1;
+  stageGrid.replaceChildren();
+  for(let i=start;i<=end;i++){
+    const stars=stageStarCount(i), unlocked=stageUnlocked(i), cleared=stars>0;
+    const tile=document.createElement('button');
+    tile.type='button';tile.className='stage-tile'+(cleared?' is-cleared':'')+(!unlocked?' is-locked':'')+(i>=100?' is-three-digit':'');
+    tile.setAttribute('aria-label',`스테이지 ${i}, ${!unlocked?'잠김':cleared?`별 ${stars}개로 클리어`:'도전 가능'}`);
+    if(!unlocked)tile.setAttribute('aria-disabled','true');
+    const number=document.createElement('span');number.className='stage-num';number.textContent=i;
+    tile.append(number);
+    const lock=document.createElement('span');lock.className='stage-lock';lock.setAttribute('aria-hidden','true');
+    lock.innerHTML='<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="10" width="16" height="11" rx="2" fill="#f7e8e2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.3" fill="currentColor" stroke="none"/></svg>';
+    tile.append(lock);
+
+    tile.addEventListener('click',()=>{
+      playButtonSfx();
+      if(!unlocked)showStageMessage('이전 스테이지를 먼저 클리어해 주세요!');
+      else showGameScreen(i);
+    });
+    stageGrid.append(tile);
+  }
+}
+// 실제 스테이지 완료 화면의 결과에 연결할 함수. 별은 최대 기록(1~3개)으로 보관.
+window.recordStageClear=function(stageNumber,starsEarned){
+  const stage=Math.floor(Number(stageNumber));
+  const stars=Math.floor(Number(starsEarned));
+  if(!Number.isFinite(stage) || stage<1 || stage>TOTAL_STAGES ||
+     !Number.isFinite(stars) || stars<1 || stars>3 || !stageUnlocked(stage))return false;
+  stageProgress[stage]=Math.max(stageStarCount(stage),stars);
+  try{
+    localStorage.setItem(STAGE_STORAGE_KEY,JSON.stringify(stageProgress));
+    localStorage.setItem(LAST_CLEARED_STAGE_KEY,String(stage));
+  }catch(e){}
+  renderStages();
+  return true;
+};
+function openStageSelect(){
+  // 마지막으로 깬 레벨이 아닌, 아직 클리어하지 않은 첫 번째 레벨이 속한 페이지로 이동.
+  // 예: 15레벨 클리어 시 16~30이 있는 2페이지 표시.
+  let nextStage=MAX_PLAYABLE_STAGE;
+  for(let n=1;n<=MAX_PLAYABLE_STAGE;n++){
+    if(stageStarCount(n)===0){nextStage=n;break;}
+  }
+  stagePage=Math.floor((nextStage-1)/STAGES_PER_PAGE);
+  renderStages();
+  stageMessage.hidden=true;
+  stageOverlay.hidden=false;
+  stageOverlay.setAttribute('aria-hidden','false');
+  stageClose.focus({preventScroll:true});
+}
+function closeStageSelect(){
+  playButtonSfx();
+  clearTimeout(stageMessageTimeout);
+  stageMessage.hidden=true;
+  stageOverlay.hidden=true;
+  stageOverlay.setAttribute('aria-hidden','true');
+  document.getElementById('soloButton').focus({preventScroll:true});
+}
+document.getElementById('soloButton').addEventListener('click',openStageSelect);
+function goToStagePage(direction){
+  const target=stagePage+direction;
+  if(target<0 || target>=Math.ceil(TOTAL_STAGES/STAGES_PER_PAGE))return;
+  playButtonSfx();
+  stagePage=target;
+  stageMessage.hidden=true;
+  clearTimeout(stageMessageTimeout);
+  renderStages();
+}
+stagePrev.addEventListener('click',()=>goToStagePage(-1));
+stageNext.addEventListener('click',()=>goToStagePage(1));
+stageClose.addEventListener('click',closeStageSelect);
+stageOverlay.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){e.preventDefault();closeStageSelect();}
+  if(e.key==='Tab'){
+    const focusable=[stageClose,...stageGrid.querySelectorAll('.stage-tile'),
+      ...[stagePrev,stageNext].filter(button=>!button.disabled)];
+    const idx=focusable.indexOf(document.activeElement);
+    if(e.shiftKey && idx===0){e.preventDefault();focusable[focusable.length-1].focus();}
+    else if(!e.shiftKey && idx===focusable.length-1){e.preventDefault();focusable[0].focus();}
+  }
+});
+renderStages();
+
+
+// 같이하기 UI: 초대코드 입력만 준비. 실제 방 생성/입장은 멀티플레이 서버 연결 후 구현.
+const multiplayerOverlay=document.getElementById('multiplayerOverlay');
+const multiplayerClose=document.getElementById('multiplayerClose');
+const multiplayerCreate=document.getElementById('multiplayerCreate');
+const multiplayerJoinForm=document.getElementById('multiplayerJoinForm');
+const multiplayerCode=document.getElementById('multiplayerCode');
+const multiplayerMessage=document.getElementById('multiplayerMessage');
+let multiplayerMessageTimer=null;
+function showMultiplayerMessage(text){
+  clearTimeout(multiplayerMessageTimer);
+  multiplayerMessage.textContent=text;
+  multiplayerMessage.hidden=false;
+  multiplayerMessageTimer=setTimeout(()=>multiplayerMessage.hidden=true,2600);
+}
+function openMultiplayer(){
+  clearTimeout(multiplayerMessageTimer);
+  multiplayerMessage.hidden=true;
+  multiplayerOverlay.hidden=false;
+  multiplayerOverlay.setAttribute('aria-hidden','false');
+  multiplayerClose.focus({preventScroll:true});
+}
+function closeMultiplayer(){
+  playButtonSfx();
+  clearTimeout(multiplayerMessageTimer);
+  multiplayerMessage.hidden=true;
+  multiplayerOverlay.hidden=true;
+  multiplayerOverlay.setAttribute('aria-hidden','true');
+  document.getElementById('togetherButton').focus({preventScroll:true});
+}
+document.getElementById('togetherButton').addEventListener('click',openMultiplayer);
+multiplayerClose.addEventListener('click',closeMultiplayer);
+multiplayerCreate.addEventListener('click',()=>{
+  playButtonSfx();
+  showMultiplayerMessage('방 만들기는 멀티플레이 서버 연결 후 이용할 수 있어요!');
+});
+multiplayerJoinForm.addEventListener('submit',event=>{
+  event.preventDefault();
+  playButtonSfx();
+  const code=multiplayerCode.value.trim();
+  if(!code){
+    showMultiplayerMessage('초대코드를 먼저 입력해 주세요!');
+    multiplayerCode.focus({preventScroll:true});
+    return;
+  }
+  showMultiplayerMessage('온라인 방 입장은 서버 연결 후 이용할 수 있어요!');
+});
+multiplayerOverlay.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){event.preventDefault();closeMultiplayer();}
+  if(event.key==='Tab'){
+    const focusable=[multiplayerClose,multiplayerCreate,multiplayerCode,
+      document.getElementById('multiplayerJoin')];
+    const idx=focusable.indexOf(document.activeElement);
+    if(event.shiftKey && idx===0){event.preventDefault();focusable[focusable.length-1].focus();}
+    else if(!event.shiftKey && idx===focusable.length-1){event.preventDefault();focusable[0].focus();}
+  }
+});
+
+
+// 전체 스테이지 공용 사진 풀: 기존 64장 + 신규 5장(총 69장).
+const PHOTO_POOL=[
+  './assets/images/photo-001.webp',
+  './assets/images/photo-002.webp',
+  './assets/images/photo-003.webp',
+  './assets/images/photo-004.webp',
+  './assets/images/photo-005.webp',
+  './assets/images/photo-006.webp',
+  './assets/images/photo-007.webp',
+  './assets/images/photo-008.webp',
+  './assets/images/photo-009.webp',
+  './assets/images/photo-010.webp',
+  './assets/images/photo-011.webp',
+  './assets/images/photo-012.webp',
+  './assets/images/photo-013.webp',
+  './assets/images/photo-014.webp',
+  './assets/images/photo-015.webp',
+  './assets/images/photo-016.webp',
+  './assets/images/photo-017.webp',
+  './assets/images/photo-018.webp',
+  './assets/images/photo-019.webp',
+  './assets/images/photo-020.webp',
+  './assets/images/photo-021.webp',
+  './assets/images/photo-022.webp',
+  './assets/images/photo-023.webp',
+  './assets/images/photo-024.webp',
+  './assets/images/photo-025.webp',
+  './assets/images/photo-026.webp',
+  './assets/images/photo-027.webp',
+  './assets/images/photo-028.webp',
+  './assets/images/photo-029.webp',
+  './assets/images/photo-030.webp',
+  './assets/images/photo-031.webp',
+  './assets/images/photo-032.webp',
+  './assets/images/photo-033.webp',
+  './assets/images/photo-034.webp',
+  './assets/images/photo-035.webp',
+  './assets/images/photo-036.webp',
+  './assets/images/photo-037.webp',
+  './assets/images/photo-038.webp',
+  './assets/images/photo-039.webp',
+  './assets/images/photo-040.webp',
+  './assets/images/photo-041.webp',
+  './assets/images/photo-042.webp',
+  './assets/images/photo-043.webp',
+  './assets/images/photo-044.webp',
+  './assets/images/photo-045.webp',
+  './assets/images/photo-046.webp',
+  './assets/images/photo-047.webp',
+  './assets/images/photo-048.webp',
+  './assets/images/photo-049.webp',
+  './assets/images/photo-050.webp',
+  './assets/images/photo-051.webp',
+  './assets/images/photo-052.webp',
+  './assets/images/photo-053.webp',
+  './assets/images/photo-054.webp',
+  './assets/images/photo-055.webp',
+  './assets/images/photo-056.webp',
+  './assets/images/photo-057.webp',
+  './assets/images/photo-058.webp',
+  './assets/images/photo-059.webp',
+  './assets/images/photo-060.webp',
+  './assets/images/photo-061.webp',
+  './assets/images/photo-062.webp',
+  './assets/images/photo-063.webp',
+  './assets/images/photo-064.webp'
+,
+  './assets/images/photo-065.webp',
+  './assets/images/photo-066.webp',
+  './assets/images/photo-067.webp',
+  './assets/images/photo-068.webp',
+  './assets/images/photo-069.webp'
+];
+
+const matchGame=document.getElementById('matchGame');
+const matchHud=document.getElementById('matchHud');
+const matchBoard=document.getElementById('matchBoard');
+const matchTimerTrack=document.getElementById('matchTimerTrack');
+const matchTimerFill=document.getElementById('matchTimerFill');
+const matchTimeText=document.getElementById('matchTimeText');
+const matchFinish=document.getElementById('matchFinish');
+const matchFinishTitle=document.getElementById('matchFinishTitle');
+const matchFinishDetail=document.getElementById('matchFinishDetail');
+const matchRestart=document.getElementById('matchRestart');
+const matchSelectStage=document.getElementById('matchSelectStage');
+const matchStages=document.getElementById('matchStages');
+const ROUND_LIMIT_MS=180000, PREVIEW_LIMIT_MS=3000, TURN_DOWN_MS=410;
+let matchFirst=null,matchSecond=null,matchBusy=false,matchPairs=0;
+let matchPhase='idle',matchPhaseRemaining=0,matchRemaining=ROUND_LIMIT_MS;
+let matchLastFrame=0,matchFrame=null,matchSession=0;
+// 날짜 기반 마감 시각은 탭을 전환하거나 창을 닫아도 변하지 않습니다.
+const MATCH_SAVE_KEY='shingyeongsoeyak-stage350-live-v1';
+let matchStartedAt=0,matchPreviewEndsAt=0,matchHideEndsAt=0;
+let matchDeadlineAt=0,matchFinishAt=0,matchHintEndsAt=0;
+let matchCaptureBubbleEnabled=false;
+let matchBubbleLine='';
+let matchTimeouts=new Set();
+let matchHintsRemaining=1,matchLivesRemaining=3,matchHintActive=false,matchHintRemaining=0;
+const matchHintInitiallyFlipped=new Set();
+const pawSvg=`<svg viewBox="0 0 68 68" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#fff8f4" stroke="#8c4964" stroke-width="2.2">
+    <ellipse cx="16" cy="21" rx="7" ry="10" transform="rotate(-18 16 21)"/>
+    <ellipse cx="30" cy="13" rx="7" ry="10" transform="rotate(-5 30 13)"/>
+    <ellipse cx="46" cy="16" rx="7" ry="10" transform="rotate(15 46 16)"/>
+    <ellipse cx="57" cy="30" rx="6" ry="9" transform="rotate(25 57 30)"/>
+    <path d="M19 41 C21 32 28 30 34 34 C41 27 48 32 50 39 C55 45 52 55 45 56 C40 57 37 54 33 54 C28 54 21 61 16 54 C12 49 14 44 19 41Z"/>
+  </g></svg>`;
+const previousStageLayouts=new Map();
+let currentStageConfig=null;
+let currentStagePhotoIndices=[];
+// 아케이드 모드는 선택한 카드 배치를 무한 반복하며, 각 판마다 사진과 카드 위치를 새로 섞습니다.
+let arcadeMode=false;
+let arcadeRound=1;
+let arcadeLayoutName='';
+let arcadeConfig=null;
+const ARCADE_LAYOUT_CONFIGS={
+  '4x4':{cards:16,pairs:8,cols:4,rows:4,ratio:.66,hints:1,lives:4,previewMs:4000},
+  '4x5':{cards:20,pairs:10,cols:4,rows:5,ratio:1,hints:2,lives:5,previewMs:5000},
+  '5x4':{cards:20,pairs:10,cols:5,rows:4,ratio:2/3,hints:2,lives:5,previewMs:5000},
+  '5x6':{cards:30,pairs:15,cols:5,rows:6,ratio:1,hints:5,lives:10,previewMs:7000}
+};
+
+// 450스테이지 난이도. 사진을 매 판 랜덤으로 선택하고 2장씩 짝을 만듭니다.
+// 5×4 / 6×4 / 6×5는 가로:세로 2:3, 4×5 / 5×6은 정사각형 카드입니다.
+function getStageConfig(stage){
+  if(stage<=5)   return {cards:6, pairs:3, cols:3, rows:2, ratio:.66, hints:1, lives:3, previewMs:2000};
+  if(stage<=20)  return {cards:8, pairs:4, cols:4, rows:2, ratio:.66, hints:1, lives:3, previewMs:2000};
+  if(stage<=45)  return {cards:12,pairs:6, cols:4, rows:3, ratio:.66, hints:1, lives:3, previewMs:3000};
+  if(stage<=120) return {cards:16,pairs:8, cols:4, rows:4, ratio:.66, hints:1, lives:4, previewMs:4000};
+  if(stage<=200) return {cards:20,pairs:10,cols:4, rows:5, ratio:1,   hints:2, lives:5, previewMs:5000};
+  if(stage<=300) return {cards:20,pairs:10,cols:5, rows:4, ratio:2/3, hints:2, lives:5, previewMs:5000};
+  if(stage<=350) return {cards:24,pairs:12,cols:6, rows:4, ratio:2/3, hints:3, lives:7, previewMs:5000};
+  if(stage<=400) return {cards:30,pairs:15,cols:5, rows:6, ratio:1,   hints:5, lives:10,previewMs:7000};
+  return                 {cards:30,pairs:15,cols:6, rows:5, ratio:2/3, hints:5, lives:10,previewMs:7000};
+}
+function stagePreviewMs(stage){return getStageConfig(stage).previewMs;}
+function shuffleInPlace(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+// 301레벨 이후에는 기존처럼 유사한 사진이 함께 나올 확률을 높여요.
+// 아래 그룹은 44장 사진을 확인해 직접 묶은 주제별 목록이며, 모두 고유한 사진입니다.
+// 다른 스테이지의 완전 랜덤 선택 방식은 유지합니다.
+const SIMILAR_PHOTO_GROUPS=[
+  [0,24,25,26,30,35,36,39,40,47,49,50,57,63,64], // 흰 강아지 및 강아지와 함께 찍은 사진
+  [3,11,17,18,19,27,28,29,34,55,67,68],             // 거울 / 휴대폰 셀카
+  [4,8,9,12,16,32,33,37,45,48,54,56,61,62,65,66], // 얼굴 중심의 인물 사진
+  [5,6,15,20,23,44,46,51,58,59],             // 상반신 / 몸 중심 사진
+  [1,2,7,10,13,14,21,22,31,41,43,52,53,60]  // 다양한 셀카 / 포즈 중심 사진
+];
+function chooseStagePhotoIndices(pairCount,stage=activeStage){
+  const all=shuffleInPlace(Array.from({length:PHOTO_POOL.length},(_,i)=>i));
+  if(stage<301)return all.slice(0,pairCount);
+  // 301레벨 이후의 고난도 구간은 유사한 사진을 3개 테마에서 우선 선택합니다.
+  // 중복 사진은 넣지 않고, 부족한 개수는 전체 사진 목록에서 랜덤 보충합니다.
+  const groups=shuffleInPlace(SIMILAR_PHOTO_GROUPS.map(group=>shuffleInPlace(group.slice())));
+  const selected=[],used=new Set();
+  [6,6,4].forEach((quota,index)=>{
+    for(const photoIndex of groups[index]){
+      if(quota<=0)break;
+      if(used.has(photoIndex))continue;
+      selected.push(photoIndex);used.add(photoIndex);quota--;
+    }
+  });
+  for(const photoIndex of all){
+    if(selected.length>=pairCount)break;
+    if(!used.has(photoIndex)){selected.push(photoIndex);used.add(photoIndex);}
+  }
+  return shuffleInPlace(selected).slice(0,pairCount);
+}
+function randomizedStageLayout(stage,pairs){
+  const key=arcadeMode?`arcade:${arcadeLayoutName}`:`${stage}:${pairs}`;
+  const last=previousStageLayouts.get(key);
+  let arr;
+  do {
+    arr=[];
+    for(let i=0;i<pairs;i++)arr.push(i,i);
+    shuffleInPlace(arr);
+  } while(last && last.length===arr.length && arr.every((kind,index)=>kind===last[index]));
+  previousStageLayouts.set(key,arr.slice());
+  return arr;
+}
+function applyStageBoardLayout(config){
+  matchBoard.style.setProperty('--match-cols',String(config.cols));
+  matchBoard.style.setProperty('--match-card-ratio',String(config.ratio));
+  const gap=config.cards>=20 ? 'clamp(5px,1.15cqw,10px)' : config.cards>=16 ? 'clamp(6px,1.4cqw,12px)' : 'clamp(7px,1.7cqw,15px)';
+  // 카드가 빽빽한 배치는 세로 행 사이를 더 넓게, 균등한 간격으로 배치.
+  const spaced = [[5,4],[6,4],[5,6],[6,5],[6,6]]
+    .some(([cols,rows])=>config.cols===cols && config.rows===rows);
+  const rowGap=spaced ? 'clamp(18px,5cqw,26px)' : gap;
+  matchBoard.style.setProperty('--match-gap',gap);
+  matchBoard.style.rowGap=rowGap;
+  matchBoard.setAttribute('aria-label',`카드 ${config.cards}장`);
+  matchGame.setAttribute('aria-label',arcadeMode?`아케이드 ${arcadeRound}회 카드 짝맞추기`:`스테이지 ${activeStage} 카드 짝맞추기`);
+  matchBoard.style.removeProperty('grid-template-columns');
+  matchBoard.style.removeProperty('grid-template-rows');
+}
+// 화면 높이가 낮은 휴대폰에서도 카드판 전체가 게임 영역 안에 들어가도록 비율 유지 축소.
+function fitMatchBoard(){
+  if(!currentStageConfig || playScene.hidden || matchGame.hidden)return;
+  const c=currentStageConfig;
+  const bounds=matchBoard.getBoundingClientRect();
+  if(bounds.width<=0 || bounds.height<=0)return;
+  const css=getComputedStyle(matchBoard);
+  const columnGap=parseFloat(css.columnGap)||6;
+  const rowGap=parseFloat(css.rowGap)||columnGap;
+  const widthLimit=(bounds.width-columnGap*(c.cols-1))/c.cols;
+  const heightLimit=((bounds.height-rowGap*(c.rows-1))/c.rows)*c.ratio;
+  const cardWidth=Math.max(10,Math.min(widthLimit,heightLimit));
+  matchBoard.style.gridTemplateColumns=`repeat(${c.cols},${cardWidth}px)`;
+  matchBoard.style.gridTemplateRows=`repeat(${c.rows},${cardWidth/c.ratio}px)`;
+  matchBoard.style.justifyContent='center';
+  matchBoard.style.alignContent='center';
+}
+window.addEventListener('resize',fitMatchBoard);
+
+// 배경음/버튼 소리와 구별되는 카드 전용 효과음. 모두 효과음 음량과 메인 음소거를 따릅니다.
+function playCardTone(notes,style='sine'){
+  if(!masterOn || sfxVolume<=0)return;
+  try{
+    const Context=window.AudioContext||window.webkitAudioContext;
+    if(!Context)return;
+    audioContext ||= new Context();
+    if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});
+    const now=audioContext.currentTime+.009;
+    for(const n of notes){
+      const osc=audioContext.createOscillator(),gain=audioContext.createGain();
+      osc.type=n.type||style;
+      osc.frequency.setValueAtTime(n.hz,now+n.at);
+      const peak=Math.max(.0001,n.volume*1.45*sfxVolume/100); // 카드 효과음 음량 상향
+      gain.gain.setValueAtTime(.00001,now+n.at);
+      gain.gain.exponentialRampToValueAtTime(peak,now+n.at+.012);
+      gain.gain.exponentialRampToValueAtTime(.00001,now+n.at+n.duration);
+      osc.connect(gain).connect(audioContext.destination);
+      osc.start(now+n.at);osc.stop(now+n.at+n.duration+.018);
+    }
+  }catch(e){}
+}
+function playFlipSfx(){ // 맑은 두 음의 '띠롱~'
+  playCardTone([{hz:1318.51,at:0,volume:.12,duration:.15},
+                {hz:880,at:.09,volume:.16,duration:.39}]);
+}
+// 정답 전용 뾰로롱~: 맑게 올라가는 네 음과 마지막 긴 여운.
+function playCorrectSfx(){
+  playCardTone([
+    {hz:783.99,at:0.00,volume:.092,duration:.25,type:'sine'},
+    {hz:1046.50,at:0.085,volume:.112,duration:.29,type:'sine'},
+    {hz:1318.51,at:0.18,volume:.13,duration:.32,type:'sine'},
+    {hz:1567.98,at:0.285,volume:.14,duration:.50,type:'sine'},
+    {hz:2093.00,at:0.31,volume:.034,duration:.42,type:'sine'}
+  ]);
+}
+// 오답 전용 삐빅!: 짧고 분명한 두 번의 전자음.
+function playWrongSfx(){
+  playCardTone([
+    {hz:587.33,at:0.00,volume:.125,duration:.12,type:'square'},
+    {hz:587.33,at:0.00,volume:.062,duration:.13,type:'triangle'},
+    {hz:440.00,at:0.168,volume:.155,duration:.18,type:'square'},
+    {hz:440.00,at:0.168,volume:.072,duration:.18,type:'triangle'}
+  ]);
+}
+// 힌트 전용 맑은 '샤라랑~' 상승 아르페지오: 다른 버튼음과 구분됩니다.
+function playHintSfx(){
+  playCardTone([
+    {hz:783.99,at:0.00,volume:.060,duration:.22,type:'sine'},
+    {hz:1046.50,at:.085,volume:.073,duration:.28,type:'sine'},
+    {hz:1318.51,at:.175,volume:.091,duration:.30,type:'sine'},
+    {hz:1567.98,at:.270,volume:.098,duration:.38,type:'sine'},
+    {hz:2093.00,at:.390,volume:.083,duration:.49,type:'sine'},
+    {hz:2637.02,at:.515,volume:.049,duration:.55,type:'sine'},
+    {hz:1567.98,at:.570,volume:.030,duration:.70,type:'triangle'}
+  ]);
+}
+function matchAfter(ms,callback){
+  const session=matchSession;
+  const timer=setTimeout(()=>{
+    matchTimeouts.delete(timer);
+    if(session===matchSession)callback();
+  },ms);
+  matchTimeouts.add(timer);
+}
+const matchLives=document.getElementById('matchLives');
+const LIFE_HEART_IMAGE='./assets/images/life-heart.png';
+function updateLivesUi(){
+  matchLives.dataset.maxLives=String(currentStageConfig?.lives || 3);
+  matchLives.replaceChildren();
+  for(let i=0;i<matchLivesRemaining;i++){
+    const heart=document.createElement('img');
+    heart.className='life-heart';heart.src=LIFE_HEART_IMAGE;
+    heart.alt='';heart.setAttribute('aria-hidden','true');heart.draggable=false;
+    matchLives.append(heart);
+  }
+  matchLives.setAttribute('aria-label',`남은 목숨 ${matchLivesRemaining}개`);
+  matchLives.hidden=playScene.hidden || matchGame.hidden;
+}
+function updateHintUi(){
+  if(typeof playHintWrap==='undefined' || !playHintWrap) return;
+  // 한 장을 골라둔 중에도 힌트는 사용 가능하며, 사용 전엔 항상 반짝입니다.
+  const disabledByState=matchPhase!=='playing' || matchBusy ||
+    !homePrompt.hidden || !settingsOverlay.hidden || !matchFinish.hidden;
+  const exhausted=matchHintsRemaining<=0;
+  playHintWrap.classList.toggle('is-used',exhausted);
+  playHintWrap.classList.toggle('is-disabled',!exhausted && disabledByState);
+  playHintButton.disabled=exhausted || disabledByState;
+  playHintCount.textContent=String(matchHintsRemaining);
+  playHintWrap.setAttribute('aria-label',`힌트 남은 횟수 ${matchHintsRemaining}`);
+  playHintButton.setAttribute('aria-label',exhausted?'힌트 사용 완료, 남은 횟수 0':`힌트 사용, 남은 횟수 ${matchHintsRemaining}`);
+}
+function finishMatchHint(){
+  if(!matchHintActive)return;
+  // 힌트를 쓰기 전에 직접 선택해 둔 첫 카드는 다시 뒤집지 않습니다.
+  for(const card of matchBoard.children){
+    if(card.classList.contains('is-matched') || card.classList.contains('is-removed'))continue;
+    const wasFlipped=matchHintInitiallyFlipped.has(card);
+    card.classList.toggle('is-flipped',wasFlipped);
+    card.setAttribute('aria-pressed',wasFlipped?'true':'false');
+    card.setAttribute('aria-label',wasFlipped?'공개된 카드':'뒤집힌 카드');
+  }
+  matchHintInitiallyFlipped.clear();
+  matchHintActive=false;
+  matchHintRemaining=0;
+  matchHintEndsAt=0;
+  matchBusy=false;
+  updateHintUi();
+  saveMatchProgress();
+}
+function useMatchHint(){
+  if(matchHintsRemaining<=0 || matchPhase!=='playing' || matchBusy ||
+     !homePrompt.hidden || !settingsOverlay.hidden || !matchFinish.hidden)return;
+  // 이미 맞춰 사라진 카드는 제외하고 남아 있는 사진을 모두 공개합니다.
+  const remaining=Array.from(matchBoard.children).filter(card=>
+    !card.classList.contains('is-matched') && !card.classList.contains('is-removed'));
+  if(!remaining.length)return;
+  matchHintsRemaining=Math.max(0,matchHintsRemaining-1);
+  matchHintActive=true;
+  matchHintRemaining=3000;
+  matchHintEndsAt=Date.now()+3000;
+  matchBusy=true;
+  matchHintInitiallyFlipped.clear();
+  playHintSfx();
+  for(const card of remaining){
+    if(card.classList.contains('is-flipped'))matchHintInitiallyFlipped.add(card);
+    card.classList.add('is-flipped');
+    card.setAttribute('aria-pressed','true');
+    card.setAttribute('aria-label','힌트로 공개된 카드');
+  }
+  updateHintUi();
+  saveMatchProgress();
+}
+
+function clearSavedMatch(){
+  try{localStorage.removeItem(MATCH_SAVE_KEY);}catch(e){}
+}
+const playCaptureBubble=document.getElementById('playCaptureBubble');
+const NORMAL_BUBBLE_LINES=[
+  '눈나들 캡처 하시면 안돼요💖',
+  '눈나 화이팅💖',
+  '하츠단 따랑해💖',
+  '어렵다….'
+];
+const LIVE_BUBBLE_LINE='본방 보고있떠..?';
+function isBroadcastWindowKST(timestamp=Date.now()){
+  // 한국 시간 기준: 화/목/일 18:00~다음 날 06:00 미만.
+  // 화→수, 목→금, 일→월 새벽까지 이어집니다.
+  const seoul=new Date(timestamp+9*60*60*1000);
+  const day=seoul.getUTCDay(),hour=seoul.getUTCHours();
+  return (hour>=18 && (day===0||day===2||day===4)) ||
+         (hour<6 && (day===1||day===3||day===5));
+}
+// 선택한 스테이지와 한국 요일·시간에 따라 실제 등장 가능한 대사만 추립니다.
+function eligibleBubbleLines(stage,now=Date.now()){
+  const choices=['눈나 화이팅💖','하츠단 따랑해💖'];
+  if(stage>=21 && stage<=450)choices.push('눈나들 캡처 하시면 안돼요💖');
+  if(stage>=46 && stage<=450)choices.push('어렵다….');
+  if(stage>=1 && stage<=450 && isBroadcastWindowKST(now))choices.push(LIVE_BUBBLE_LINE);
+  return choices;
+}
+function chooseBubbleLine(now=Date.now(),stage=activeStage){
+  const choices=eligibleBubbleLines(stage,now);
+  return choices[Math.floor(Math.random()*choices.length)];
+}
+// 말풍선 모서리와 꼬리를 SVG 단일 경로로 그려 접합부의 끊김/겹침을 없앱니다.
+let bubbleOutlineSize='';
+function updateBubbleOutline(){
+  const rect=playCaptureBubble.getBoundingClientRect();
+  const w=Math.round(rect.width*10)/10,h=Math.round(rect.height*10)/10;
+  if(w<20||h<15)return;
+  const key=`${w}:${h}`;
+  if(bubbleOutlineSize===key)return;
+  bubbleOutlineSize=key;
+  const tail=12,edge=1.25,r=Math.min(0.033*document.querySelector('.game-screen').clientWidth,h/2-3);
+  const x=tail+edge,right=w+tail-edge,bottom=h-edge,mid=h/2,mouth=Math.min(8,mid-5);
+  const f=n=>Number(n.toFixed(2));
+  const d=`M ${f(tail+r)} ${f(edge)} H ${f(right-r)} Q ${f(right)} ${f(edge)} ${f(right)} ${f(edge+r)} V ${f(bottom-r)} Q ${f(right)} ${f(bottom)} ${f(right-r)} ${f(bottom)} H ${f(tail+r)} Q ${f(x)} ${f(bottom)} ${f(x)} ${f(mid+mouth)} L ${f(edge)} ${f(mid)} L ${f(x)} ${f(mid-mouth)} Q ${f(x)} ${f(edge)} ${f(tail+r)} ${f(edge)} Z`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${f(w+tail)} ${f(h)}" preserveAspectRatio="none"><path d="${d}" fill="#fff9f4" stroke="#483132" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+  playCaptureBubble.style.setProperty('--bubble-outline',`url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+}
+function refreshCaptureBubble(now=Date.now()){
+  // 타이머가 2:55가 된 시점부터 2초 동안만 표시합니다.
+  // 다른 탭에 있는 동안 지나갔다면 나중에 다시 나타나지 않습니다.
+  const start=matchDeadlineAt-175000;
+  const visible=!arcadeMode && matchCaptureBubbleEnabled && activeStage>=1 && matchPhase==='playing' &&
+    now>=start && now<start+2000 && !playScene.hidden && !document.hidden &&
+    homePrompt.hidden && settingsOverlay.hidden && matchFinish.hidden;
+  if(visible && !matchBubbleLine){
+    matchBubbleLine=chooseBubbleLine(now);
+    saveMatchProgress();
+  }
+  if(visible)playCaptureBubble.textContent=matchBubbleLine;
+  playCaptureBubble.hidden=!visible;
+  if(visible)updateBubbleOutline();
+}
+function saveMatchProgress(){
+  if(arcadeMode || playScene.hidden || matchPhase==='idle'||matchPhase==='over' || !currentStageConfig)return;
+  try{
+    const cards=Array.from(matchBoard.children);
+    const snapshot={version:7,stage:activeStage,startedAt:matchStartedAt,
+      previewEndsAt:matchPreviewEndsAt,hideEndsAt:matchHideEndsAt,
+      deadlineAt:matchDeadlineAt,finishAt:matchFinishAt,
+      phase:matchPhase,hintsRemaining:matchHintsRemaining,livesRemaining:matchLivesRemaining,
+      captureBubbleEnabled:matchCaptureBubbleEnabled,
+      bubbleLine:matchBubbleLine,
+      hintActive:matchHintActive,hintEndsAt:matchHintEndsAt,photoIndices:currentStagePhotoIndices.slice(),
+      firstIndex:matchFirst?cards.indexOf(matchFirst):-1,
+      hintInitiallyFlipped:Array.from(matchHintInitiallyFlipped).map(card=>cards.indexOf(card)),
+      cards:cards.map(card=>({kind:Number(card.dataset.kind),
+        matched:card.classList.contains('is-matched'),
+        flipped:card.classList.contains('is-flipped')}))};
+    localStorage.setItem(MATCH_SAVE_KEY,JSON.stringify(snapshot));
+  }catch(e){}
+}
+function createMatchCard(kind,index){
+  const button=document.createElement('button');
+  button.type='button';button.className='match-card';
+  button.dataset.kind=String(kind);
+  button.setAttribute('aria-label',`뒤집힌 카드 ${index+1}`);
+  button.setAttribute('aria-pressed','false');
+  button.innerHTML='<span class="match-card-inner"><span class="match-face match-back"></span><span class="match-face match-front"><img alt="" draggable="false"></span></span>';
+  const img=button.querySelector('img');
+  const poolIndex=currentStagePhotoIndices[kind] ?? 0;
+  img.src=PHOTO_POOL[poolIndex];
+  button.addEventListener('click',()=>flipLevelOneCard(button));
+  return button;
+}
+function restoreMatchProgress(){
+  let state;
+  try{state=JSON.parse(localStorage.getItem(MATCH_SAVE_KEY)||'null');}catch(e){return false;}
+  if(!state || ![5,6,7].includes(state.version) || !Number.isInteger(state.stage) || state.stage<1 || state.stage>MAX_PLAYABLE_STAGE){
+    if(state)clearSavedMatch();
+    return false;
+  }
+  const config=getStageConfig(state.stage);
+  if(!Array.isArray(state.photoIndices) || state.photoIndices.length!==config.pairs ||
+     !state.photoIndices.every(i=>Number.isInteger(i)&&i>=0&&i<PHOTO_POOL.length) ||
+     !Array.isArray(state.cards) || state.cards.length!==config.cards ||
+     !state.cards.every(item=>Number.isInteger(item.kind)&&item.kind>=0&&item.kind<config.pairs) ||
+     !Number.isFinite(state.deadlineAt)||!Number.isFinite(state.previewEndsAt)||
+     !Number.isFinite(state.hideEndsAt)||!Number.isFinite(state.startedAt)){
+    clearSavedMatch();
+    return false;
+  }
+  if(Date.now()-state.startedAt>24*3600000){clearSavedMatch();return false;}
+  clearMatchTimers();
+  arcadeMode=false;arcadeConfig=null;arcadeLayoutName='';arcadeRound=1;
+  activeStage=state.stage;
+  currentStageConfig=config;
+  currentStagePhotoIndices=state.photoIndices.slice();
+  applyStageBoardLayout(currentStageConfig);
+  document.querySelector('.match-level').textContent=`STAGE ${activeStage}`;
+  matchHud.setAttribute('aria-label',`${activeStage}레벨 남은 시간`);
+  matchStartedAt=state.startedAt;
+  matchPreviewEndsAt=state.previewEndsAt;
+  matchHideEndsAt=state.hideEndsAt;
+  matchDeadlineAt=state.deadlineAt;
+  matchCaptureBubbleEnabled=state.captureBubbleEnabled===true;
+  matchBubbleLine=eligibleBubbleLines(activeStage,Date.now()).includes(state.bubbleLine)?state.bubbleLine:'';
+  matchFinishAt=Number(state.finishAt)||0;
+  matchHintEndsAt=Number(state.hintEndsAt)||0;
+  matchHintsRemaining=state.version>=6&&Number.isInteger(state.hintsRemaining)
+    ? Math.max(0,Math.min(config.hints,state.hintsRemaining))
+    : (state.hintUsed ? Math.max(0,config.hints-1) : config.hints);
+  const savedLives=state.version>=6&&Number.isInteger(state.livesRemaining)
+    ? state.livesRemaining : config.lives;
+  // 이전 버전에서 46~75레벨 진행 중이었다면 새로 추가된 목숨 1개를 1회 지급합니다.
+  const addedLife=state.version<7 && state.stage>=46 && state.stage<=75 && savedLives>0 ? 1 : 0;
+  matchLivesRemaining=Math.max(0,Math.min(config.lives,savedLives+addedLife));
+  matchHintActive=false;matchHintRemaining=0;matchHintInitiallyFlipped.clear();
+  matchFirst=null;matchSecond=null;matchBusy=false;
+  matchBoard.replaceChildren();
+  state.cards.forEach((item,index)=>{
+    const card=createMatchCard(item.kind,index);
+    if(item.flipped || item.matched){
+      card.classList.add('is-flipped');
+      card.setAttribute('aria-pressed','true');
+      card.setAttribute('aria-label','공개된 카드');
+    }
+    if(item.matched){
+      card.classList.add('is-matched','is-removed');
+      card.disabled=true;
+      card.setAttribute('aria-label','짝을 맞춘 카드');
+    }
+    matchBoard.append(card);
+  });
+  matchPairs=state.cards.filter(item=>item.matched).length/2;
+  const cards=Array.from(matchBoard.children);
+  const firstIndex=Number.isInteger(state.firstIndex)?state.firstIndex:-1;
+  if(firstIndex>=0 && firstIndex<cards.length && !cards[firstIndex].classList.contains('is-matched'))matchFirst=cards[firstIndex];
+  if(Array.isArray(state.hintInitiallyFlipped)){
+    for(const index of state.hintInitiallyFlipped){
+      if(Number.isInteger(index) && index>=0 && index<cards.length)matchHintInitiallyFlipped.add(cards[index]);
+    }
+  }
+  const now=Date.now();
+  if(state.phase==='winning'||matchPairs===currentStageConfig.pairs){
+    matchPhase='winning';matchBusy=true;
+    if(!matchFinishAt || matchFinishAt<now+50)matchFinishAt=now+200;
+  }else if(state.phase==='preview'){
+    matchPhase='preview';matchBusy=true;
+  }else if(state.phase==='hiding'){
+    matchPhase='hiding';matchBusy=true;
+  }else {
+    matchPhase='playing';
+    matchBusy=false;
+  }
+  matchRemaining=Math.max(0,matchDeadlineAt-now);
+  if(state.hintActive && Number.isFinite(matchHintEndsAt) && matchHintEndsAt>now && matchPhase==='playing'){
+    matchHintActive=true;
+    matchHintRemaining=matchHintEndsAt-now;
+    for(const card of cards){
+      if(card.classList.contains('is-matched') || card.classList.contains('is-removed'))continue;
+      if(card.classList.contains('is-flipped'))matchHintInitiallyFlipped.add(card);
+      card.classList.add('is-flipped');
+      card.setAttribute('aria-pressed','true');
+      card.setAttribute('aria-label','힌트로 공개된 카드');
+    }
+    matchBusy=true;
+  }
+  playScene.hidden=false;
+  document.querySelector('.game-screen').classList.add('play-active');
+  stageOverlay.hidden=true;
+  stageOverlay.setAttribute('aria-hidden','true');
+  homePrompt.hidden=true;
+  homePrompt.setAttribute('aria-hidden','true');
+  matchFinish.hidden=true;
+  matchFinish.setAttribute('aria-hidden','true');
+  matchGame.hidden=false;matchHud.hidden=false;
+  paintMatchClock();
+  updateLivesUi();updateHintUi();
+  fitMatchBoard();
+  if(matchLivesRemaining<=0&&matchPhase==='playing')showMatchResult(false);
+  else refreshMatchClock();
+  return true;
+}
+function clearMatchTimers(){
+  matchSession++;
+  for(const t of matchTimeouts)clearTimeout(t);
+  matchTimeouts.clear();
+  if(matchFrame!==null)cancelAnimationFrame(matchFrame);
+  matchFrame=null;matchLastFrame=0;matchPhase='idle';
+  playCaptureBubble.hidden=true;
+  matchHintActive=false;matchHintRemaining=0;matchHintInitiallyFlipped.clear();
+}
+function paintMatchClock(){
+  const seconds=Math.max(0,Math.ceil(matchRemaining/1000));
+  const text=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+  matchTimeText.textContent=text;
+  const pct=Math.max(0,Math.min(1,matchRemaining/ROUND_LIMIT_MS));
+  matchTimerFill.style.transform='scaleX('+pct+')';
+  matchTimerTrack.setAttribute('aria-valuenow',String(seconds));
+  matchTimerTrack.classList.toggle('is-urgent',seconds<=30);
+}
+function showMatchResult(win){
+  if(matchPhase==='over')return;
+  matchPhase='over';matchBusy=true;
+  playCaptureBubble.hidden=true;
+  matchHintActive=false;matchHintRemaining=0;matchHintInitiallyFlipped.clear();
+  matchFinishTitle.textContent=arcadeMode?(win?`ARCADE ${arcadeRound} CLEAR!`:'게임 종료!'):(win?`STAGE ${activeStage} CLEAR!`:'게임 종료!');
+  matchFinishDetail.hidden=true;
+  matchFinishDetail.textContent='';
+  matchFinish.dataset.result=win?'win':'lose';
+  matchSelectStage.hidden=arcadeMode||!win;
+  matchStages.textContent=win?(arcadeMode?'다음 판으로':'다음단계로'):'홈으로';
+  matchStages.dataset.nextStage=!arcadeMode&&win&&activeStage<MAX_PLAYABLE_STAGE?String(activeStage+1):'';
+  matchFinish.hidden=false;
+  matchFinish.setAttribute('aria-hidden','false');
+  clearSavedMatch();
+  updateHintUi();
+  if(win&&!arcadeMode)recordStageClear(activeStage,1);
+  matchRestart.focus({preventScroll:true});
+}
+function matchClockTick(){
+  matchFrame=null;
+  if(matchPhase==='idle'||matchPhase==='over')return;
+  const now=Date.now();
+  if(matchPhase==='preview'&&now>=matchPreviewEndsAt){
+    matchPhase='hiding';
+    for(const card of matchBoard.children){
+      card.classList.remove('is-flipped');
+      card.setAttribute('aria-label','뒤집힌 카드');
+      card.setAttribute('aria-pressed','false');
+    }
+    updateHintUi();saveMatchProgress();
+  }
+  if(matchPhase==='hiding'&&now>=matchHideEndsAt){
+    matchPhase='playing';matchBusy=false;
+    updateHintUi();saveMatchProgress();
+  }
+  if(matchPhase==='playing'){
+    matchRemaining=Math.max(0,matchDeadlineAt-now);
+    refreshCaptureBubble(now);
+    if(matchHintActive){
+      matchHintRemaining=Math.max(0,matchHintEndsAt-now);
+      if(matchHintRemaining<=0)finishMatchHint();
+    }
+    paintMatchClock();
+    if(matchRemaining<=0){showMatchResult(false);return;}
+    updateHintUi();
+  }else if(matchPhase==='winning'){
+    playCaptureBubble.hidden=true;
+    if(now>=matchFinishAt){showMatchResult(true);return;}
+  }
+  if(matchPhase!=='over'&&matchPhase!=='idle')matchFrame=requestAnimationFrame(matchClockTick);
+}
+function refreshMatchClock(){
+  if(matchPhase==='idle'||matchPhase==='over')return;
+  if(matchFrame!==null)cancelAnimationFrame(matchFrame);
+  matchFrame=null;
+  matchClockTick();
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)saveMatchProgress();
+  else refreshMatchClock();
+});
+window.addEventListener('focus',refreshMatchClock);
+window.addEventListener('pagehide',saveMatchProgress);
+function resetLevelOne(){
+  clearMatchTimers();
+  currentStageConfig=arcadeMode?{...arcadeConfig}:getStageConfig(activeStage);
+  currentStagePhotoIndices=chooseStagePhotoIndices(currentStageConfig.pairs,arcadeMode?1:activeStage);
+  applyStageBoardLayout(currentStageConfig);
+  matchFirst=null;matchSecond=null;matchBusy=true;matchPairs=0;
+  matchStartedAt=Date.now();
+  const previewMs=arcadeMode?currentStageConfig.previewMs:stagePreviewMs(activeStage);
+  matchPreviewEndsAt=matchStartedAt+previewMs;
+  matchHideEndsAt=matchPreviewEndsAt+TURN_DOWN_MS;
+  matchDeadlineAt=matchHideEndsAt+ROUND_LIMIT_MS;
+  matchCaptureBubbleEnabled=!arcadeMode && activeStage>=1 && Math.random()<0.50;
+  matchBubbleLine='';
+  playCaptureBubble.hidden=true;
+  matchFinishAt=0;matchHintEndsAt=0;
+  matchRemaining=ROUND_LIMIT_MS;matchPhase='preview';matchPhaseRemaining=previewMs;
+  matchHintsRemaining=currentStageConfig.hints;
+  matchLivesRemaining=currentStageConfig.lives;
+  matchHintActive=false;matchHintRemaining=0;
+  matchHintInitiallyFlipped.clear();
+  matchFinish.hidden=true;
+  matchFinish.setAttribute('aria-hidden','true');
+  matchGame.hidden=false;matchHud.hidden=false;
+  matchBoard.replaceChildren();
+  const values=randomizedStageLayout(activeStage,currentStageConfig.pairs);
+  for(let index=0;index<values.length;index++){
+    const button=createMatchCard(values[index],index);
+    button.classList.add('is-flipped');
+    button.setAttribute('aria-label',`미리보기 카드 ${index+1}`);
+    button.setAttribute('aria-pressed','true');
+    matchBoard.append(button);
+  }
+  paintMatchClock();
+  updateLivesUi();updateHintUi();
+  fitMatchBoard();
+  saveMatchProgress();
+  matchFrame=requestAnimationFrame(matchClockTick);
+}
+function flipLevelOneCard(card){
+  if(matchPhase!=='playing'||matchBusy||card.classList.contains('is-flipped')||
+     card.classList.contains('is-matched')||card.classList.contains('is-removed')||
+     !homePrompt.hidden||!settingsOverlay.hidden||!matchFinish.hidden)return;
+  playFlipSfx();
+  card.classList.add('is-flipped');
+  card.setAttribute('aria-pressed','true');
+  card.setAttribute('aria-label','공개된 카드');
+  if(!matchFirst){matchFirst=card;updateHintUi();saveMatchProgress();return;}
+  matchSecond=card;
+  updateHintUi();
+  matchBusy=true;
+  const first=matchFirst,second=matchSecond;
+  saveMatchProgress();
+  if(first.dataset.kind===second.dataset.kind){
+    matchAfter(140,playCorrectSfx);
+    first.classList.add('is-matched','is-success');
+    second.classList.add('is-matched','is-success');
+    first.disabled=true;second.disabled=true;
+    first.setAttribute('aria-label','짝을 맞춘 카드');second.setAttribute('aria-label','짝을 맞춘 카드');
+    matchFirst=null;matchSecond=null;matchPairs++;
+    if(matchPairs<currentStageConfig.pairs)matchBusy=false;
+    updateHintUi();saveMatchProgress();
+    matchAfter(1000,()=>{
+      for(const matched of [first,second]){
+        matched.classList.remove('is-success');
+        matched.classList.add('is-removed');
+      }
+    });
+    if(matchPairs===currentStageConfig.pairs){
+      matchPhase='winning';matchPhaseRemaining=1220;
+      matchFinishAt=Date.now()+1220;
+    }
+    return;
+  }
+  matchLivesRemaining=Math.max(0,matchLivesRemaining-1);
+  updateLivesUi();saveMatchProgress();
+  matchAfter(170,playWrongSfx);
+  matchAfter(560,()=>{
+    if(matchPhase!=='playing')return;
+    first.classList.remove('is-flipped');second.classList.remove('is-flipped');
+    first.setAttribute('aria-pressed','false');second.setAttribute('aria-pressed','false');
+    first.setAttribute('aria-label','뒤집힌 카드');second.setAttribute('aria-label','뒤집힌 카드');
+    matchFirst=null;matchSecond=null;matchBusy=false;
+    if(matchLivesRemaining<=0){showMatchResult(false);return;}
+    updateHintUi();saveMatchProgress();
+  });
+}
+matchRestart.addEventListener('click',()=>{playButtonSfx();resetLevelOne();});
+matchSelectStage.addEventListener('click',()=>{
+  playButtonSfx();
+  arcadeMode=false;arcadeConfig=null;arcadeLayoutName='';arcadeRound=1;
+  clearSavedMatch();
+  clearMatchTimers();
+  matchFinish.hidden=true;
+  matchFinish.setAttribute('aria-hidden','true');
+  matchGame.hidden=true;matchHud.hidden=true;
+  updateLivesUi();updateHintUi();
+  playScene.hidden=true;
+  document.querySelector('.game-screen').classList.remove('play-active');
+  openStageSelect();
+});
+matchStages.addEventListener('click',()=>{
+  playButtonSfx();
+  if(matchFinish.dataset.result==='lose'){
+    exitGameToHome();
+    return;
+  }
+  if(arcadeMode){
+    arcadeRound++;
+    activeStage=arcadeRound;
+    document.querySelector('.match-level').textContent=`ARCADE ${arcadeRound}`;
+    matchHud.setAttribute('aria-label',`아케이드 ${arcadeRound}회 남은 시간`);
+    resetLevelOne();
+    return;
+  }
+  if(matchFinish.dataset.result==='win' && activeStage>=MAX_PLAYABLE_STAGE){
+    matchFinishDetail.textContent='다음 스테이지 업데이트 중이에요!';
+    matchFinishDetail.hidden=false;
+    return;
+  }
+  const nextStage=Number(matchStages.dataset.nextStage)||0;
+  clearSavedMatch();
+  if(nextStage>0 && nextStage<=MAX_PLAYABLE_STAGE && stageUnlocked(nextStage)){
+    showGameScreen(nextStage);
+    return;
+  }
+  clearMatchTimers();
+  matchFinish.hidden=true;
+  matchFinish.setAttribute('aria-hidden','true');
+  matchGame.hidden=true;matchHud.hidden=true;
+  updateLivesUi();updateHintUi();
+  playScene.hidden=true;
+  document.querySelector('.game-screen').classList.remove('play-active');
+  openStageSelect();
+});
+
+// 게임 화면에서 모바일 확대 제스처 및 Ctrl+휠 확대 방지.
+document.addEventListener('wheel',e=>{if(e.ctrlKey)e.preventDefault();},{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
+
+// 스테이지를 눌러 카드 매칭 게임 배경으로 이동합니다. 카드 게임 규칙은 추후 연결합니다.
+const playScene=document.getElementById('playScene');
+const playHome=document.getElementById('playHome');
+const playHintWrap=document.getElementById('playHintWrap');
+const playHintButton=document.getElementById('playHintButton');
+const playHintCount=document.getElementById('playHintCount');
+const homePrompt=document.getElementById('homePrompt');
+const homeExit=document.getElementById('homeExit');
+const homeResume=document.getElementById('homeResume');
+const playMusicToggle=document.getElementById('playMusicToggle');
+const playMusicOffArt=document.getElementById('playMusicOffArt');
+const playSettingsOpen=document.getElementById('playSettingsOpen');
+let activeStage=1;
+function showGameScreen(stageNumber){
+  if(!Number.isInteger(stageNumber)||stageNumber<1||stageNumber>TOTAL_STAGES)return;
+  arcadeMode=false;arcadeConfig=null;arcadeLayoutName='';arcadeRound=1;
+  if(stageNumber>MAX_PLAYABLE_STAGE)return;
+  if(!stageUnlocked(stageNumber)){
+    showStageMessage('이전 스테이지를 먼저 클리어해 주세요!');return;
+  }
+  document.querySelector('.game-screen').classList.add('play-active');
+  activeStage=stageNumber;
+  document.querySelector('.match-level').textContent=`STAGE ${activeStage}`;
+  matchHud.setAttribute('aria-label',`${activeStage}레벨 남은 시간`);
+  resetLevelOne();
+  stageOverlay.hidden=true;
+  stageOverlay.setAttribute('aria-hidden','true');
+  stageMessage.hidden=true;
+  clearTimeout(stageMessageTimeout);
+  playScene.hidden=false;
+  updateLivesUi();
+  fitMatchBoard();
+  saveMatchProgress();
+  updateHintUi();
+  playHome.focus({preventScroll:true});
+  updateIcon();
+}
+const arcadeOverlay=document.getElementById('arcadeOverlay');
+const arcadeClose=document.getElementById('arcadeClose');
+const arcadeLayoutButtons=Array.from(arcadeOverlay.querySelectorAll('[data-arcade-layout]'));
+const recordsButton=document.getElementById('recordsButton');
+function openArcadeOverlay(){
+  arcadeOverlay.hidden=false;
+  arcadeOverlay.setAttribute('aria-hidden','false');
+  arcadeClose.focus({preventScroll:true});
+}
+function closeArcadeOverlay(){
+  playButtonSfx();
+  arcadeOverlay.hidden=true;
+  arcadeOverlay.setAttribute('aria-hidden','true');
+  recordsButton.focus({preventScroll:true});
+}
+function startArcadeMode(layoutName){
+  const selected=ARCADE_LAYOUT_CONFIGS[layoutName];
+  if(!selected)return;
+  clearSavedMatch();
+  clearMatchTimers();
+  arcadeMode=true;
+  arcadeRound=1;
+  arcadeLayoutName=layoutName;
+  arcadeConfig={...selected};
+  activeStage=arcadeRound;
+  document.querySelector('.game-screen').classList.add('play-active');
+  stageOverlay.hidden=true;stageOverlay.setAttribute('aria-hidden','true');
+  arcadeOverlay.hidden=true;arcadeOverlay.setAttribute('aria-hidden','true');
+  homePrompt.hidden=true;homePrompt.setAttribute('aria-hidden','true');
+  matchFinish.hidden=true;matchFinish.setAttribute('aria-hidden','true');
+  playScene.hidden=false;
+  document.querySelector('.match-level').textContent=`ARCADE ${arcadeRound}`;
+  matchHud.setAttribute('aria-label',`아케이드 ${arcadeRound}회 남은 시간`);
+  resetLevelOne();
+  updateLivesUi();updateHintUi();fitMatchBoard();
+  playHome.focus({preventScroll:true});
+  updateIcon();
+}
+recordsButton.addEventListener('click',openArcadeOverlay);
+arcadeClose.addEventListener('click',closeArcadeOverlay);
+arcadeLayoutButtons.forEach(button=>button.addEventListener('click',()=>{
+  playButtonSfx();
+  startArcadeMode(button.dataset.arcadeLayout);
+}));
+arcadeOverlay.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){event.preventDefault();closeArcadeOverlay();return;}
+  if(event.key==='Tab'){
+    const focusable=[arcadeClose,...arcadeLayoutButtons];
+    const index=focusable.indexOf(document.activeElement);
+    if(event.shiftKey&&index===0){event.preventDefault();focusable[focusable.length-1].focus();}
+    else if(!event.shiftKey&&index===focusable.length-1){event.preventDefault();focusable[0].focus();}
+  }
+});
+
+function openHomePrompt(){
+  playButtonSfx();
+  homePrompt.hidden=false;
+  homePrompt.setAttribute('aria-hidden','false');
+  updateHintUi();
+  homeResume.focus({preventScroll:true});
+}
+function closeHomePrompt(){
+  playButtonSfx();
+  homePrompt.hidden=true;
+  homePrompt.setAttribute('aria-hidden','true');
+  updateHintUi();
+  playHome.focus({preventScroll:true});
+}
+playHome.addEventListener('click',openHomePrompt);
+playHintButton.addEventListener('click',useMatchHint);
+homeResume.addEventListener('click',closeHomePrompt);
+function exitGameToHome(){
+  arcadeMode=false;arcadeConfig=null;arcadeLayoutName='';arcadeRound=1;
+  clearSavedMatch();
+  clearMatchTimers();
+  matchGame.hidden=true;
+  matchHud.hidden=true;
+  matchFinish.hidden=true;
+  matchFinish.setAttribute('aria-hidden','true');
+  homePrompt.hidden=true;
+  homePrompt.setAttribute('aria-hidden','true');
+  updateHintUi();
+  playScene.hidden=true;
+  document.querySelector('.game-screen').classList.remove('play-active');
+  // 진행 중인 게임을 끝내고 메인으로 복귀합니다.
+  document.getElementById('soloButton').focus({preventScroll:true});
+}
+homeExit.addEventListener('click',()=>{playButtonSfx();exitGameToHome();});
+homePrompt.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){event.preventDefault();closeHomePrompt();}
+  if(event.key==='Tab'){
+    if(event.shiftKey&&document.activeElement===homeExit){event.preventDefault();homeResume.focus();}
+    else if(!event.shiftKey&&document.activeElement===homeResume){event.preventDefault();homeExit.focus();}
+  }
+});
+playMusicToggle.addEventListener('click',toggleMasterMusic);
+playSettingsOpen.addEventListener('click',openSettings);
+// 새로고침/탭 종료 후 재접속 시 기존 카드 배치와 남은 시간을 복원합니다.
+restoreMatchProgress();
+
+</script>
+</body>
+</html>
